@@ -3,9 +3,18 @@
     :messages="notificationMessages"
     :visible="notificationMessages.length > 0"
   />
-  <div style="max-width: 600px; margin: 2rem auto;">
-    <VoiceAssistant />
+  <!-- Floating Chat Button unten links -->
+  <div class="chat-fab" @click="showChat = true">
+    <svg xmlns="http://www.w3.org/2000/svg" height="32" viewBox="0 0 24 24" width="32"><path fill="#fff" d="M2 2v20l4-4h16V2H2zm16 12H6v-2h12v2zm0-4H6V8h12v2zm0-4H6V4h12v2z"/></svg>
   </div>
+  <transition name="chat-bubble">
+    <div v-if="showChat" class="chat-bubble-overlay">
+      <div class="chat-bubble">
+        <button class="chat-close" @click="showChat = false">×</button>
+        <VoiceAssistant />
+      </div>
+    </div>
+  </transition>
   <v-toolbar class="room-toolbar" flat>
     <v-slide-group
       v-model="selectedRoom"
@@ -166,5 +175,83 @@ const cardComponents = {
   WWSolarCard,
   PVRoom,
 }
-</script>
 
+const showChat = ref(false)
+
+</script>
+<style scoped>
+/* Floating Chat Button */
+.chat-fab {
+  position: fixed;
+  right: 32px;
+  bottom: 32px;
+  z-index: 1001;
+  width: 56px;
+  height: 56px;
+  background: #1976d2;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.chat-fab:hover {
+  background: #1565c0;
+}
+
+/* Chat Bubble Overlay */
+.chat-bubble-overlay {
+  position: fixed;
+  right: 32px;
+  bottom: 100px;
+  z-index: 1002;
+  display: flex;
+  align-items: flex-end;
+}
+.chat-bubble {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+  padding: 32px 24px 24px 24px;
+  min-width: 320px;
+  max-width: 95vw;
+  min-height: 220px;
+  width: 600px;
+  height: 400px;
+  position: relative;
+  animation: chat-pop 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+@media (max-width: 900px) {
+  .chat-bubble {
+    width: 95vw;
+    height: 60vh;
+    min-width: 0;
+    max-width: 95vw;
+    min-height: 180px;
+  }
+  }
+.chat-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: #1976d2;
+  cursor: pointer;
+}
+@keyframes chat-pop {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.chat-bubble-enter-active, .chat-bubble-leave-active {
+  transition: opacity 0.2s;
+}
+.chat-bubble-enter-from, .chat-bubble-leave-to {
+  opacity: 0;
+}
+</style>

@@ -94,19 +94,35 @@ async function sendToGPT(userText) {
   const data = await response.json()
   const allDevices = Object.values(devices.value).flat()
 
-  // Licht schalten
+  // Licht schalten (verbesserte Logik: Suche nach Lichtname und Raum)
   if (data && data.name === 'toggle_light') {
     const params = JSON.parse(data.arguments || '{}')
     const room = params.room
     const state = params.state
-    const device = allDevices.find(d => d.name.toLowerCase().includes(room.toLowerCase()) && d.type === 'switch')
+    // Versuche Lichtname aus dem User-Text zu extrahieren
+    let lightName = ''
+    const lightKeywords = ['nachtlicht', 'fernsehlicht', 'hauptlicht', 'licht', 'ambiente', 'kochlicht']
+    for (const keyword of lightKeywords) {
+      if (userText.toLowerCase().includes(keyword)) {
+        lightName = keyword
+        break
+      }
+    }
+    let device = null
+    if (lightName) {
+      device = allDevices.find(d => d.name.toLowerCase().includes(room.toLowerCase()) && d.type === 'switch' && d.name.toLowerCase().includes(lightName))
+    }
+    // Fallback: erstes Licht im Raum
+    if (!device) {
+      device = allDevices.find(d => d.name.toLowerCase().includes(room.toLowerCase()) && d.type === 'switch')
+    }
     if (device) {
       const value = state === 'on' ? device.onValue : device.offValue
       const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(device.id)}&query=value=${encodeURIComponent(value)}`
       try {
         const res = await fetch(url)
         if (res.ok) {
-          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Hat funktioniert.' })
+          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Das ${lightName ? lightName : 'Licht'} im ${room} wurde ${state === 'on' ? 'eingeschaltet' : 'ausgeschaltet'}.` })
         } else {
           chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Schalten!' })
         }
@@ -318,8 +334,10 @@ function sendChat() {
 
 <style scoped>
 .voice-assistant-card {
-  max-width: 600px;
-  margin: 2rem auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
 }
 .voice-controls {
   display: flex;
