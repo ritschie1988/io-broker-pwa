@@ -1,68 +1,121 @@
 <template>
   <v-app>
-    <!-- AppBar oben mit Burger-Button -->
-    <v-app-bar app color="primary" dark>
-      <v-app-bar-nav-icon @click="drawer = !drawer" />
-      <v-toolbar-title>Smart Home</v-toolbar-title>
-      <v-spacer />
-
-      <!-- Hauptmenü als Tabs mit Pfeilen -->
-      <v-tabs
-        v-model="view"
-        background-color="primary"
-        show-arrows
-        class="main-tabs"
-        slider-color="secondary"
+    <template v-if="isAuthenticated">
+      <!-- ...existing code... -->
+      <v-app-bar app color="primary" dark>
+        <v-app-bar-nav-icon @click="drawer = !drawer" />
+        <v-toolbar-title>Smart Home</v-toolbar-title>
+        <v-spacer />
+        <v-btn icon @click="logout" title="Logout">
+          <v-icon>mdi-logout</v-icon>
+        </v-btn>
+        <v-tabs
+          v-model="view"
+          background-color="primary"
+          show-arrows
+          class="main-tabs"
+          slider-color="secondary"
+          dark
+        >
+          <v-tab
+            v-for="item in navItems"
+            :key="item.title"
+            :value="item.view"
+          >
+            {{ item.title }}
+          </v-tab>
+        </v-tabs>
+      </v-app-bar>
+      <v-navigation-drawer
+        v-model="drawer"
+        app
+        color="primary"
         dark
+        :clipped="$vuetify.display.smAndDown"
+        temporary
       >
-        <v-tab
-          v-for="item in navItems"
-          :key="item.title"
-          :value="item.view"
-        >
-          {{ item.title }}
-        </v-tab>
-      </v-tabs>
-
-    </v-app-bar>
-
-    <!-- Navigation Drawer links -->
-    <v-navigation-drawer
-      v-model="drawer"
-      app
-      color="primary"
-      dark
-      :clipped="$vuetify.display.smAndDown"
-      temporary
-    >
-      <v-list>
-        <v-list-item
-          v-for="item in navItems"
-          :key="item.title"
-          @click="view = item.view; drawer = false"
-          :active="view === item.view"
-        >
-          <v-list-item-title>{{ item.title }}</v-list-item-title>
-        </v-list-item>
-      </v-list>
-    </v-navigation-drawer>
-
-<v-main>
-  <v-container fluid class="pa-0">
-    <component
-      :is="currentView"
-      :selectedRoom="selectedRoom"
-      :darkTheme="darkTheme"
-      :notifications="notifications"
-      @update:darkTheme="onUpdateDarkTheme"
-      @update:notifications="onUpdateNotifications"
-    />
-  </v-container>
-</v-main>
+        <v-list>
+          <v-list-item
+            v-for="item in navItems"
+            :key="item.title"
+            @click="view = item.view; drawer = false"
+            :active="view === item.view"
+          >
+            <v-list-item-title>{{ item.title }}</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-navigation-drawer>
+      <v-main>
+        <v-container fluid class="pa-0">
+          <component
+            :is="currentView"
+            :selectedRoom="selectedRoom"
+            :darkTheme="darkTheme"
+            :notifications="notifications"
+            @update:darkTheme="onUpdateDarkTheme"
+            @update:notifications="onUpdateNotifications"
+          />
+        </v-container>
+      </v-main>
+    </template>
+    <template v-else>
+      <Login @login-success="onLoginSuccess" />
+    </template>
   </v-app>
 </template>
 
 <script setup>
+import Login from './components/Login.vue'
+const isAuthenticated = ref(false)
+
+function parseJwt(token) {
+  if (!token) return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const payload = JSON.parse(atob(parts[1]));
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+function checkAuth() {
+  const token = localStorage.getItem('auth_token');
+  if (!token) {
+    isAuthenticated.value = false;
+    return;
+  }
+  const payload = parseJwt(token);
+  if (!payload || !payload.exp) {
+    isAuthenticated.value = false;
+    return;
+  }
+  const now = Math.floor(Date.now() / 1000);
+  if (payload.exp < now) {
+    localStorage.removeItem('auth_token');
+    isAuthenticated.value = false;
+    return;
+  }
+  isAuthenticated.value = true;
+}
+
+onMounted(() => {
+  checkAuth();
+  // Automatische Prüfung alle 30 Sekunden
+  setInterval(checkAuth, 30000);
+})
+
+function onLoginSuccess() {
+  checkAuth();
+  window.location.href = 'https://darkorbithome.ddns.net/iobroker/';
+}
+
+function logout() {
+  localStorage.removeItem('auth_token');
+  isAuthenticated.value = false;
+  window.location.reload();
+}
 import { ref, computed, watch, getCurrentInstance, onMounted } from 'vue'
 import DashboardView from './views/DashboardView.vue'
 import HeizungView from './views/HeizungView.vue'
