@@ -30,13 +30,20 @@ const isListening = ref(false)
 const lastTranscript = ref('')
 const chatInput = ref('')
 const chatHistory = ref([])
-const devices = ref({})
+const roomsData = ref({})
+
+// Hilfsfunktion für case-insensitive Raumzuordnung
+function findRoomKey(rooms, spokenRoom) {
+  if (!spokenRoom) return null;
+  const lower = spokenRoom.toLowerCase();
+  return Object.keys(rooms).find(key => key.toLowerCase() === lower);
+}
 
 let recognition = null
 onMounted(async () => {
-  // Lade Geräte
+  // Lade Geräte (rooms-Objekt)
   const res = await fetch('/iobroker/devices.json')
-  devices.value = await res.json()
+  roomsData.value = await res.json()
   // Web Speech API
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
   if (SpeechRecognition) {
@@ -92,45 +99,91 @@ async function sendToGPT(userText) {
     body: new URLSearchParams({ user: userText })
   })
   const data = await response.json()
-  const allDevices = Object.values(devices.value).flat()
+  const rooms = roomsData.value // rooms-Objekt
 
-  // Licht schalten (verbesserte Logik: Suche nach Lichtname und Raum)
+  // Licht schalten (direkt im Raum suchen)
   if (data && data.name === 'toggle_light') {
     const params = JSON.parse(data.arguments || '{}')
-    const room = params.room
-    const state = params.state
-    // Versuche Lichtname aus dem User-Text zu extrahieren
-    let lightName = ''
-    const lightKeywords = ['nachtlicht', 'fernsehlicht', 'hauptlicht', 'licht', 'ambiente', 'kochlicht']
-    for (const keyword of lightKeywords) {
-      if (userText.toLowerCase().includes(keyword)) {
-        lightName = keyword
-        break
-      }
-    }
-    let device = null
-    if (lightName) {
-      device = allDevices.find(d => d.name.toLowerCase().includes(room.toLowerCase()) && d.type === 'switch' && d.name.toLowerCase().includes(lightName))
-    }
-    // Fallback: erstes Licht im Raum
-    if (!device) {
-      device = allDevices.find(d => d.name.toLowerCase().includes(room.toLowerCase()) && d.type === 'switch')
-    }
-    if (device) {
-      const value = state === 'on' ? device.onValue : device.offValue
-      const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(device.id)}&query=value=${encodeURIComponent(value)}`
-      try {
-        const res = await fetch(url)
-        if (res.ok) {
-          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Das ${lightName ? lightName : 'Licht'} im ${room} wurde ${state === 'on' ? 'eingeschaltet' : 'ausgeschaltet'}.` })
-        } else {
-          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Schalten!' })
+    // Mehrere Lichtbefehle erkennen: z.B. "Schalte das Nachtlicht im Schlafzimmer ein und das Fernsehlicht im Wohnzimmer aus"
+    const re = /(nachtlicht|fernsehlicht|hauptlicht|licht|ambiente|kochlicht) im ([a-zäöüß]+) (ein|aus)/gi
+    const matches = [...userText.matchAll(re)]
+    let found = false
+    if (matches.length > 0) {
+      for (const m of matches) {
+        const lightLabel = m[1].toLowerCase()
+        const spokenRoom = m[2]
+        const state = m[3] === 'ein' ? 'on' : 'off'
+        // Raum-Key case-insensitive suchen
+        const roomKey = findRoomKey(rooms, spokenRoom)
+        let device = null
+        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `[Debug] Raum erkannt: "${spokenRoom}" → Key: "${roomKey}"` })
+        if (roomKey && rooms[roomKey] && Array.isArray(rooms[roomKey].lights)) {
+          // Suche nur in lights-Array des Raums
+          const lightsArr = rooms[roomKey].lights
+          device = lightsArr.find(d => d.label && d.label.toLowerCase() === lightLabel)
+          if (!device) {
+            device = lightsArr.find(d => d.label && d.label.toLowerCase() === lightLabel.toLowerCase())
+          }
+          if (!device) {
+            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `[Debug] Kein Gerät mit Label "${lightLabel}" im lights-Array von Raum "${spokenRoom}" gefunden.` })
+          }
         }
-      } catch (e) {
-        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
+        if (device) {
+          found = true
+          const value = state === 'on' ? (device.onValue ?? true) : (device.offValue ?? false)
+          const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(device.id)}&query=value=${encodeURIComponent(value)}`
+          try {
+            const res = await fetch(url)
+            if (res.ok) {
+              chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Das ${device.label} im ${spokenRoom} wurde ${state === 'on' ? 'eingeschaltet' : 'ausgeschaltet'}.` })
+            } else {
+              chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Schalten!' })
+            }
+          } catch (e) {
+            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
+          }
+        } else if (roomKey && rooms[roomKey] && Array.isArray(rooms[roomKey].lights)) {
+          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `[Debug] Kein passendes Gerät für ${lightLabel} im ${spokenRoom} gefunden!` })
+        }
       }
-    } else {
-      chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Kein passendes Gerät gefunden!' })
+    }
+    // Falls kein Match, Standardlogik wie bisher (einzelner Befehl)
+    if (!found) {
+      const spokenRoom = params.room
+      const state = params.state
+      let lightName = ''
+      const lightKeywords = ['nachtlicht', 'fernsehlicht', 'hauptlicht', 'licht', 'ambiente', 'kochlicht']
+      for (const keyword of lightKeywords) {
+        if (userText.toLowerCase().includes(keyword)) {
+          lightName = keyword
+          break
+        }
+      }
+      let device = null
+      const roomKey = findRoomKey(rooms, spokenRoom)
+      if (roomKey && rooms[roomKey] && Array.isArray(rooms[roomKey].lights)) {
+        const lightsArr = rooms[roomKey].lights
+        device = lightsArr.find(d => d.label && d.label.toLowerCase() === lightName.toLowerCase())
+        if (!device) {
+          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `[Debug] Kein Gerät mit Label "${lightName}" im lights-Array von Raum "${spokenRoom}" gefunden.` })
+        }
+      }
+      if (device) {
+        const value = state === 'on' ? (device.onValue ?? true) : (device.offValue ?? false)
+        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(device.id)}&query=value=${encodeURIComponent(value)}`
+        try {
+          const res = await fetch(url)
+          if (res.ok) {
+            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Das ${device.label} im ${spokenRoom} wurde ${state === 'on' ? 'eingeschaltet' : 'ausgeschaltet'}.` })
+          } else {
+            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Schalten!' })
+          }
+        } catch (e) {
+          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
+        }
+      } else if (roomKey && rooms[roomKey] && Array.isArray(rooms[roomKey].lights)) {
+        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `[Debug] Kein passendes Gerät für ${lightName} im ${spokenRoom} gefunden!` })
+      }
     }
     return
   }
@@ -139,14 +192,24 @@ async function sendToGPT(userText) {
   if (data && data.name === 'get_temperature') {
     const params = JSON.parse(data.arguments || '{}')
     const room = params.room
-    const device = allDevices.find(d => d.name.toLowerCase().includes(room.toLowerCase()) && d.type === 'sensor' && d.name.toLowerCase().includes('temperatur'))
+    let device = null
+    let label = ''
+    if (userText && rooms[room] && rooms[room].temperature && rooms[room].temperature.label) {
+      label = rooms[room].temperature.label.toLowerCase()
+      if (userText.toLowerCase().includes(label)) {
+        device = rooms[room].temperature
+      }
+    }
+    if (!device && rooms[room] && rooms[room].temperature) {
+      device = rooms[room].temperature
+    }
     if (device) {
       const url = `/iobroker/api/iobroker-proxy.php?endpoint=get/${encodeURIComponent(device.id)}`
       try {
         const res = await fetch(url)
         if (res.ok) {
           const val = await res.json()
-          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Die Temperatur im ${room} beträgt ${val.val} ${device.unit || '°C'}.` })
+          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Die Temperatur im ${room} beträgt ${val.val} °C.` })
         } else {
           chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Auslesen der Temperatur!' })
         }
@@ -154,7 +217,7 @@ async function sendToGPT(userText) {
         chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
       }
     } else {
-      chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Kein Temperatursensor gefunden!' })
+      chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Kein Temperatursensor mit passendem Label gefunden!' })
     }
     return
   }
@@ -164,7 +227,17 @@ async function sendToGPT(userText) {
     const params = JSON.parse(data.arguments || '{}')
     const room = params.room
     const value = params.value
-    const device = allDevices.find(d => d.name.toLowerCase().includes(room.toLowerCase()) && d.type === 'target' && d.name.toLowerCase().includes('temperatur'))
+    let device = null
+    let label = ''
+    if (userText && rooms[room] && rooms[room].targetTemp && rooms[room].targetTemp.label) {
+      label = rooms[room].targetTemp.label.toLowerCase()
+      if (userText.toLowerCase().includes(label)) {
+        device = rooms[room].targetTemp
+      }
+    }
+    if (!device && rooms[room] && rooms[room].targetTemp) {
+      device = rooms[room].targetTemp
+    }
     if (device) {
       const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(device.id)}&query=value=${encodeURIComponent(value)}`
       try {
@@ -178,7 +251,7 @@ async function sendToGPT(userText) {
         chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
       }
     } else {
-      chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Kein passendes Zieltemperatur-Gerät gefunden!' })
+      chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Kein passendes Zieltemperatur-Gerät mit Label gefunden!' })
     }
     return
   }
@@ -192,42 +265,56 @@ async function sendToGPT(userText) {
     const mode = params.mode
     const temperature = params.temperature
     const turbo = params.turbo
-    const acDevice = allDevices.find(d => d.name.toLowerCase().includes(room.toLowerCase()) && d.name.toLowerCase().includes('klima power'))
-    const tempDevice = allDevices.find(d => d.name.toLowerCase().includes(room.toLowerCase()) && d.name.toLowerCase().includes('klima solltemperatur'))
-    const opModeDevice = allDevices.find(d => d.name.toLowerCase().includes(room.toLowerCase()) && d.name.toLowerCase().includes('klima') && d.name.toLowerCase().includes('operationalmode'))
-    const turboDevice = allDevices.find(d => d.name.toLowerCase().includes(room.toLowerCase()) && d.name.toLowerCase().includes('klima') && d.name.toLowerCase().includes('turbo'))
-
+    let climate = null
+    let label = ''
+    if (userText && rooms[room] && rooms[room].climate) {
+      // Suche nach Label in allen climate-Unterobjekten
+      const keys = ['powerState', 'operationalMode', 'targetTemperature', 'turboMode']
+      for (const k of keys) {
+        if (rooms[room].climate[k] && rooms[room].climate[k].label) {
+          const l = rooms[room].climate[k].label.toLowerCase()
+          if (userText.toLowerCase().includes(l)) {
+            label = l
+            break
+          }
+        }
+      }
+      climate = rooms[room].climate
+    }
+    if (!climate && rooms[room] && rooms[room].climate) {
+      climate = rooms[room].climate
+    }
     // set_all: mehrere Parameter gleichzeitig setzen
-    if (action === 'set_all') {
+    if (action === 'set_all' && climate) {
       let results = []
       // Power einschalten
-      if (acDevice) {
+      if (climate.powerState && climate.powerState.id && (!label || climate.powerState.label.toLowerCase() === label)) {
         const acValue = 1 // an
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(acDevice.id)}&query=value=${encodeURIComponent(acValue)}`
+        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(climate.powerState.id)}&query=value=${encodeURIComponent(acValue)}`
         try {
           const res = await fetch(url)
           if (res.ok) results.push('Klimaanlage eingeschaltet.')
         } catch {}
       }
       // Modus setzen
-      if (opModeDevice && mode) {
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(opModeDevice.id)}&query=value=${encodeURIComponent(mode)}`
+      if (climate.operationalMode && climate.operationalMode.id && mode && (!label || climate.operationalMode.label.toLowerCase() === label)) {
+        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(climate.operationalMode.id)}&query=value=${encodeURIComponent(mode)}`
         try {
           const res = await fetch(url)
           if (res.ok) results.push(`Modus auf ${mode} gesetzt.`)
         } catch {}
       }
       // Temperatur setzen
-      if (tempDevice && temperature) {
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(tempDevice.id)}&query=value=${encodeURIComponent(temperature)}`
+      if (climate.targetTemperature && climate.targetTemperature.id && temperature && (!label || climate.targetTemperature.label.toLowerCase() === label)) {
+        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(climate.targetTemperature.id)}&query=value=${encodeURIComponent(temperature)}`
         try {
           const res = await fetch(url)
           if (res.ok) results.push(`Solltemperatur auf ${temperature}°C gesetzt.`)
         } catch {}
       }
       // Turbo setzen
-      if (turboDevice && typeof turbo !== 'undefined') {
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(turboDevice.id)}&query=value=${encodeURIComponent(turbo)}`
+      if (climate.turboMode && climate.turboMode.id && typeof turbo !== 'undefined' && (!label || climate.turboMode.label.toLowerCase() === label)) {
+        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(climate.turboMode.id)}&query=value=${encodeURIComponent(turbo)}`
         try {
           const res = await fetch(url)
           if (res.ok) results.push(`Turbo-Modus ${turbo ? 'aktiviert' : 'deaktiviert'}.`)
@@ -237,11 +324,11 @@ async function sendToGPT(userText) {
       return
     }
 
-    // Einzelaktionen wie bisher
-    if (action === 'on' || action === 'off') {
-      if (acDevice) {
-        const acValue = action === 'on' ? acDevice.onValue : acDevice.offValue
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(acDevice.id)}&query=value=${encodeURIComponent(acValue)}`
+    // Einzelaktionen wie bisher, aber mit Label-Matching
+    if (climate) {
+      if ((action === 'on' || action === 'off') && climate.powerState && climate.powerState.id && (!label || climate.powerState.label.toLowerCase() === label)) {
+        const acValue = action === 'on' ? 1 : 0
+        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(climate.powerState.id)}&query=value=${encodeURIComponent(acValue)}`
         try {
           const res = await fetch(url)
           if (res.ok) {
@@ -252,12 +339,8 @@ async function sendToGPT(userText) {
         } catch (e) {
           chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
         }
-      } else {
-        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Keine Klimaanlage gefunden!' })
-      }
-    } else if (action === 'set_temp') {
-      if (tempDevice && value) {
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(tempDevice.id)}&query=value=${encodeURIComponent(value)}`
+      } else if (action === 'set_temp' && climate.targetTemperature && climate.targetTemperature.id && value && (!label || climate.targetTemperature.label.toLowerCase() === label)) {
+        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(climate.targetTemperature.id)}&query=value=${encodeURIComponent(value)}`
         try {
           const res = await fetch(url)
           if (res.ok) {
@@ -268,13 +351,8 @@ async function sendToGPT(userText) {
         } catch (e) {
           chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
         }
-      } else {
-        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Kein passendes Klimaanlagen-Temperaturgerät gefunden!' })
-      }
-    } else if (action === 'set_mode') {
-      // operationalMode setzen
-      if (opModeDevice && value) {
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(opModeDevice.id)}&query=value=${encodeURIComponent(value)}`
+      } else if (action === 'set_mode' && climate.operationalMode && climate.operationalMode.id && value && (!label || climate.operationalMode.label.toLowerCase() === label)) {
+        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(climate.operationalMode.id)}&query=value=${encodeURIComponent(value)}`
         try {
           const res = await fetch(url)
           if (res.ok) {
@@ -294,13 +372,8 @@ async function sendToGPT(userText) {
         } catch (e) {
           chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
         }
-      } else {
-        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Kein passendes Klimaanlagen-Modusgerät gefunden!' })
-      }
-    } else if (action === 'set_turbo') {
-      // turboMode setzen
-      if (turboDevice && typeof value !== 'undefined') {
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(turboDevice.id)}&query=value=${encodeURIComponent(value)}`
+      } else if (action === 'set_turbo' && climate.turboMode && climate.turboMode.id && typeof value !== 'undefined' && (!label || climate.turboMode.label.toLowerCase() === label)) {
+        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(climate.turboMode.id)}&query=value=${encodeURIComponent(value)}`
         try {
           const res = await fetch(url)
           if (res.ok) {
@@ -312,12 +385,10 @@ async function sendToGPT(userText) {
           chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
         }
       } else {
-        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Kein passendes Turbo-Modus-Gerät gefunden!' })
+        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Unbekannte Klimaanlagen-Aktion oder kein passendes Label!' })
       }
-    } else {
-      chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Unbekannte Klimaanlagen-Aktion!' })
+      return
     }
-    return
   }
 
   // Fallback
@@ -333,6 +404,7 @@ function sendChat() {
 </script>
 
 <style scoped>
+
 .voice-assistant-card {
   width: 100%;
   max-width: none;
@@ -344,6 +416,8 @@ function sendChat() {
   align-items: center;
   margin-bottom: 1rem;
 }
+
+
 .chat-window {
   background: #f5f5f5;
   border-radius: 8px;
@@ -351,7 +425,25 @@ function sendChat() {
   max-height: 300px;
   overflow-y: auto;
   margin-bottom: 1rem;
+  scrollbar-width: thin;
+  scrollbar-color: #1976d2 #f5f5f5;
+  display: flex;
+  flex-direction: column;
 }
+
+/* Für Webkit-Browser */
+.chat-window::-webkit-scrollbar {
+  width: 8px;
+}
+.chat-window::-webkit-scrollbar-thumb {
+  background: #1976d2;
+  border-radius: 8px;
+}
+.chat-window::-webkit-scrollbar-track {
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
 .chat-msg {
   margin-bottom: 0.5rem;
 }
