@@ -7,7 +7,6 @@
 
 <style scoped>
 .card {
-  background: #fff;
   border-radius: 12px;
   box-shadow: 0 2px 8px #0001;
   padding: 2rem;

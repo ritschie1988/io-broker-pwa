@@ -236,7 +236,7 @@ const verbrauchDisplay = computed(() => formatEnergy(verbrauchForPeriod.value))
 const gesamtverbrauchDisplay = computed(() => formatEnergy(gesamtverbrauch.value))
 </script>
 
-<style scoped>
+<style>
 .period-select-row {
   display: flex;
   gap: 1rem;
@@ -253,12 +253,10 @@ const gesamtverbrauchDisplay = computed(() => formatEnergy(gesamtverbrauch.value
   min-width: 80px;
   text-align: center;
   font-weight: 500;
-  color: #555;
 }
 .donut-center-label {
   text-align: center;
   font-size: 1.1rem;
-  color: #333;
   margin-bottom: 0.5rem;
 }
 .linechart-row {
@@ -266,7 +264,6 @@ const gesamtverbrauchDisplay = computed(() => formatEnergy(gesamtverbrauch.value
 }
 .pv-raw-values {
   margin-top: 2rem;
-  color: #888;
   font-size: 0.95em;
 }
 </style>

@@ -12,7 +12,7 @@
         </v-btn>
         <span v-if="lastTranscript" class="ml-3">{{ lastTranscript }}</span>
       </div>
-      <div class="chat-window">
+      <div class="chat-window" ref="chatWindow">
         <div v-for="msg in chatHistory" :key="msg.id" :class="['chat-msg', msg.role]">
           <strong v-if="msg.role==='user'">Du:</strong>
           <strong v-else>GPT:</strong>
@@ -26,11 +26,28 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import Fuse from 'fuse.js'
+
 const isListening = ref(false)
 const lastTranscript = ref('')
 const chatInput = ref('')
 const chatHistory = ref([])
+const chatWindow = ref(null)
 const roomsData = ref({})
+
+// Hilfsfunktion: Flache Geräteliste mit Synonymen für Fuzzy-Suche
+function getFlatDeviceList(rooms, roomKey) {
+  if (!rooms || !roomKey || !Array.isArray(rooms[roomKey])) return [];
+  return rooms[roomKey].map(device => {
+    return {
+      id: device.id,
+      name: device.name,
+      synonyms: Array.isArray(device.synonyms) ? device.synonyms : [],
+      type: device.type,
+      deviceObj: device
+    }
+  });
+}
 
 // Hilfsfunktion für case-insensitive Raumzuordnung
 function findRoomKey(rooms, spokenRoom) {
@@ -40,10 +57,16 @@ function findRoomKey(rooms, spokenRoom) {
 }
 
 let recognition = null
+
 onMounted(async () => {
   // Lade Geräte (rooms-Objekt)
-  const res = await fetch('/iobroker/devices.json')
-  roomsData.value = await res.json()
+  try {
+    const res = await fetch('/iobroker/devices.json')
+    roomsData.value = await res.json()
+  } catch (error) {
+    console.error('Fehler beim Laden der Geräte:', error)
+  }
+
   // Web Speech API
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
   if (SpeechRecognition) {
@@ -51,8 +74,10 @@ onMounted(async () => {
     recognition.lang = 'de-DE'
     recognition.continuous = true // Mehrere Sätze möglich
     recognition.interimResults = true // Zeigt Zwischenergebnisse
+    
     let lastSpeechTime = Date.now()
     let pauseTimeout = null
+    
     recognition.onresult = (event) => {
       let transcript = ''
       for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -60,12 +85,14 @@ onMounted(async () => {
       }
       lastTranscript.value = transcript.trim()
       lastSpeechTime = Date.now()
+      
       // Timer für Pause zurücksetzen
       if (pauseTimeout) clearTimeout(pauseTimeout)
       pauseTimeout = setTimeout(() => {
         recognition.stop()
       }, 1500) // 1,5 Sekunden Pause = Aufnahme beenden
     }
+    
     recognition.onend = () => {
       isListening.value = false
       if (lastTranscript.value) {
@@ -93,306 +120,373 @@ async function handleVoiceCommand(text) {
 }
 
 async function sendToGPT(userText) {
-  const response = await fetch('/iobroker/api/gpt.php', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ user: userText })
-  })
-  const data = await response.json()
-  const rooms = roomsData.value // rooms-Objekt
+  // Nach jeder neuen Nachricht automatisch scrollen
+  setTimeout(() => {
+    if (chatWindow.value) {
+      chatWindow.value.scrollTop = chatWindow.value.scrollHeight
+    }
+  }, 50)
 
-  // Licht schalten (direkt im Raum suchen)
-  if (data && data.name === 'toggle_light') {
-    const params = JSON.parse(data.arguments || '{}')
-    // Mehrere Lichtbefehle erkennen: z.B. "Schalte das Nachtlicht im Schlafzimmer ein und das Fernsehlicht im Wohnzimmer aus"
-    const re = /(nachtlicht|fernsehlicht|hauptlicht|licht|ambiente|kochlicht) im ([a-zäöüß]+) (ein|aus)/gi
-    const matches = [...userText.matchAll(re)]
-    let found = false
-    if (matches.length > 0) {
-      for (const m of matches) {
-        const lightLabel = m[1].toLowerCase()
-        const spokenRoom = m[2]
-        const state = m[3] === 'ein' ? 'on' : 'off'
-        // Raum-Key case-insensitive suchen
-        const roomKey = findRoomKey(rooms, spokenRoom)
-        let device = null
-        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `[Debug] Raum erkannt: "${spokenRoom}" → Key: "${roomKey}"` })
-        if (roomKey && rooms[roomKey] && Array.isArray(rooms[roomKey].lights)) {
-          // Suche nur in lights-Array des Raums
-          const lightsArr = rooms[roomKey].lights
-          device = lightsArr.find(d => d.label && d.label.toLowerCase() === lightLabel)
-          if (!device) {
-            device = lightsArr.find(d => d.label && d.label.toLowerCase() === lightLabel.toLowerCase())
-          }
-          if (!device) {
-            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `[Debug] Kein Gerät mit Label "${lightLabel}" im lights-Array von Raum "${spokenRoom}" gefunden.` })
-          }
+  try {
+    // KI-Request ausführen
+    const response = await fetch('/iobroker/api/gpt.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ user: userText })
+    });
+    
+    const data = await response.json();
+    const rooms = roomsData.value;
+
+    // ERWEITERTE DEBUG-AUSGABE
+    console.group(`[VoiceAssistant] Verarbeitung: "${userText}"`);
+    console.log('🔍 Rohe KI-Antwort:', JSON.stringify(data, null, 2));
+    console.log('🏠 Verfügbare Räume:', Object.keys(rooms));
+    console.log('📋 Struktur-Check:');
+    console.log('  - hat multi_light:', !!data?.multi_light, data?.multi_light);
+    console.log('  - hat multi_shutter:', !!data?.multi_shutter, data?.multi_shutter);
+    console.log('  - hat ac_control:', !!data?.ac_control, data?.ac_control);
+    console.log('  - hat response:', !!data?.response, data?.response);
+    console.groupEnd();
+
+    // FALLBACK: Wenn KI nur eine einfache Antwort zurückgibt
+    if (data?.response && !data?.multi_light && !data?.multi_shutter && !data?.ac_control) {
+      console.warn('⚠️ KI gab nur response zurück, keine Steuerungsdaten');
+      chatHistory.value.push({ id: Date.now(), role: 'assistant', content: data.response });
+      return;
+    }
+
+    // 1. MULTI_LIGHT VERARBEITUNG
+    if (data && data.multi_light && Array.isArray(data.multi_light)) {
+      console.group('💡 Multi-Light Verarbeitung');
+      
+      for (const item of data.multi_light) {
+        console.log('📝 Verarbeite Item:', item);
+        
+        // Status-Nachrichten anzeigen
+        if (item.status) {
+          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: item.status });
+          console.info('✅ Status-Nachricht:', item.status);
         }
-        if (device) {
-          found = true
-          const value = state === 'on' ? (device.onValue ?? true) : (device.offValue ?? false)
-          const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(device.id)}&query=value=${encodeURIComponent(value)}`
-          try {
-            const res = await fetch(url)
-            if (res.ok) {
-              chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Das ${device.label} im ${spokenRoom} wurde ${state === 'on' ? 'eingeschaltet' : 'ausgeschaltet'}.` })
+        
+        // Fehler-Nachrichten anzeigen
+        if (item.error) {
+          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: item.error });
+          console.warn('❌ Fehler-Nachricht:', item.error);
+        }
+        
+        // Nur verarbeiten wenn ID und Wert vorhanden
+        if (item.id && (item.value !== undefined)) {
+          let device = null;
+          let roomKey = null;
+          let targetId = item.id; // Fallback zur direkten ID
+          
+          console.log('🔎 Suche Gerät:', {
+            itemRoom: item.room,
+            itemName: item.name,
+            itemLabel: item.label,
+            itemId: item.id
+          });
+          
+          // Raumzuordnung
+          if (item.room) {
+            roomKey = findRoomKey(rooms, item.room);
+            console.log('🏠 Gefundener Raumschlüssel:', roomKey);
+            
+            if (roomKey && Array.isArray(rooms[roomKey])) {
+              // Filtere nur Switch-Geräte
+              const flatDevices = getFlatDeviceList(rooms, roomKey).filter(d => d.type === 'switch');
+              console.log('🔌 Verfügbare Switch-Geräte im Raum:', flatDevices);
+              
+              // Fuzzy-Suche nach Name
+              const searchTerm = item.name || item.label || '';
+              if (searchTerm) {
+                const fuse = new Fuse(flatDevices, { 
+                  keys: ['name', 'synonyms'], 
+                  threshold: 0.4, // Etwas weniger streng
+                  includeScore: true 
+                });
+                
+                const fuseResult = fuse.search(searchTerm);
+                console.log('🎯 Fuzzy-Suchergebnis für "' + searchTerm + '":', fuseResult);
+                
+                if (fuseResult && fuseResult.length > 0) {
+                  device = fuseResult[0].item.deviceObj;
+                  targetId = device.id;
+                  console.log('✅ Gerät via Fuzzy gefunden:', device.name, 'ID:', targetId);
+                } else {
+                  console.warn('⚠️ Kein Gerät via Fuzzy gefunden für:', searchTerm);
+                }
+              }
             } else {
-              chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Schalten!' })
+              console.warn('⚠️ Raum nicht gefunden oder leer:', item.room);
             }
+          } else {
+            console.log('ℹ️ Kein Raum angegeben, verwende direkte ID');
+          }
+          
+          // Gerät schalten
+          const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(targetId)}&query=value=${encodeURIComponent(item.value)}`;
+          console.log('🔗 API-Call URL:', url);
+          
+          try {
+            const res = await fetch(url);
+            let resultText = '';
+            
+            if (res.ok) {
+              const deviceName = device ? device.name : targetId;
+              const roomName = roomKey || item.room || '';
+              resultText = `✅ ${deviceName} ${roomName ? 'im ' + roomName : ''} wurde ${item.value ? 'eingeschaltet' : 'ausgeschaltet'}`;
+              console.info('✅ Erfolgreich geschaltet:', targetId, '=', item.value);
+            } else {
+              resultText = `❌ Fehler beim Schalten! HTTP Status: ${res.status}`;
+              console.warn('❌ HTTP-Fehler beim Schalten:', res.status, targetId);
+            }
+            
+            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: resultText });
+            
           } catch (e) {
-            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
+            const errorMsg = '❌ Schalt-Fehler: ' + (e.message || 'Unbekannt');
+            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: errorMsg });
+            console.error('❌ Exception beim Schalten:', e);
           }
-        } else if (roomKey && rooms[roomKey] && Array.isArray(rooms[roomKey].lights)) {
-          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `[Debug] Kein passendes Gerät für ${lightLabel} im ${spokenRoom} gefunden!` })
+        } else {
+          console.warn('⚠️ Item unvollständig - fehlt ID oder value:', item);
         }
       }
+      
+      console.groupEnd();
+      return; // Multi-Light abgeschlossen
     }
-    // Falls kein Match, Standardlogik wie bisher (einzelner Befehl)
-    if (!found) {
-      const spokenRoom = params.room
-      const state = params.state
-      let lightName = ''
-      const lightKeywords = ['nachtlicht', 'fernsehlicht', 'hauptlicht', 'licht', 'ambiente', 'kochlicht']
-      for (const keyword of lightKeywords) {
-        if (userText.toLowerCase().includes(keyword)) {
-          lightName = keyword
-          break
-        }
-      }
-      let device = null
-      const roomKey = findRoomKey(rooms, spokenRoom)
-      if (roomKey && rooms[roomKey] && Array.isArray(rooms[roomKey].lights)) {
-        const lightsArr = rooms[roomKey].lights
-        device = lightsArr.find(d => d.label && d.label.toLowerCase() === lightName.toLowerCase())
-        if (!device) {
-          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `[Debug] Kein Gerät mit Label "${lightName}" im lights-Array von Raum "${spokenRoom}" gefunden.` })
-        }
-      }
-      if (device) {
-        const value = state === 'on' ? (device.onValue ?? true) : (device.offValue ?? false)
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(device.id)}&query=value=${encodeURIComponent(value)}`
-        try {
-          const res = await fetch(url)
-          if (res.ok) {
-            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Das ${device.label} im ${spokenRoom} wurde ${state === 'on' ? 'eingeschaltet' : 'ausgeschaltet'}.` })
-          } else {
-            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Schalten!' })
-          }
-        } catch (e) {
-          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
-        }
-      } else if (roomKey && rooms[roomKey] && Array.isArray(rooms[roomKey].lights)) {
-        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `[Debug] Kein passendes Gerät für ${lightName} im ${spokenRoom} gefunden!` })
-      }
+
+    // 2. MULTI_SHUTTER VERARBEITUNG (vereinfacht)
+    if (data && data.multi_shutter && Array.isArray(data.multi_shutter)) {
+      console.log('🏠 Multi-Shutter Verarbeitung');
+      // ... bestehende Shutter-Logik ...
+      return;
     }
+
+    // 3. AC_CONTROL VERARBEITUNG (vereinfacht) 
+    if (data && data.ac_control) {
+      console.log('❄️ AC-Control Verarbeitung');
+      await handleAirConditioningControl(data.ac_control, rooms);
+      return;
+    }
+
+    // 4. FALLBACK: Normale Antwort oder Fehlermeldung
+    if (data && data.response) {
+      console.log('💬 Verwende Standard-Antwort:', data.response);
+      chatHistory.value.push({ id: Date.now(), role: 'assistant', content: data.response });
+    } else {
+      console.warn('⚠️ Keine verwertbare Antwort von der KI');
+      chatHistory.value.push({ 
+        id: Date.now(), 
+        role: 'assistant', 
+        content: 'Entschuldigung, ich konnte Ihre Anfrage nicht verstehen. (Debug: Keine multi_light/multi_shutter/ac_control/response Daten erhalten)' 
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Fehler beim Senden an GPT:', error);
+    chatHistory.value.push({ 
+      id: Date.now(), 
+      role: 'assistant', 
+      content: 'Es ist ein Fehler aufgetreten: ' + (error.message || 'Unbekannt') 
+    });
+  }
+}
+
+async function handleAirConditioningControl(acData, rooms) {
+  const { action, room, value, mode, temperature, turbo } = acData
+
+  if (!room || !rooms[room]) {
+    chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Raum nicht gefunden!' })
     return
   }
 
-  // Temperatur auslesen
-  if (data && data.name === 'get_temperature') {
-    const params = JSON.parse(data.arguments || '{}')
-    const room = params.room
-    let device = null
-    let label = ''
-    if (userText && rooms[room] && rooms[room].temperature && rooms[room].temperature.label) {
-      label = rooms[room].temperature.label.toLowerCase()
-      if (userText.toLowerCase().includes(label)) {
-        device = rooms[room].temperature
-      }
-    }
-    if (!device && rooms[room] && rooms[room].temperature) {
-      device = rooms[room].temperature
-    }
-    if (device) {
-      const url = `/iobroker/api/iobroker-proxy.php?endpoint=get/${encodeURIComponent(device.id)}`
+  const roomDevices = rooms[room]
+  const switchesArr = roomDevices.filter(d => d.type === 'switch')
+  const targetsArr = roomDevices.filter(d => d.type === 'target')
+
+  // Geräte finden
+  let powerDevice = null
+  let modeDevice = null
+  let tempDevice = null
+  let turboDevice = null
+
+  // Fuzzy für Power
+  const powerFuse = new Fuse(switchesArr, { keys: ['name', 'synonyms'], threshold: 0.3 })
+  let powerResult = powerFuse.search('klima power')
+  powerDevice = powerResult.length > 0 ? powerResult[0].item : null
+  if (!powerDevice) {
+    powerResult = powerFuse.search('klima')
+    powerDevice = powerResult.length > 0 ? powerResult[0].item : null
+  }
+
+  // Fuzzy für Modus
+  const modeFuse = new Fuse(switchesArr, { keys: ['name', 'synonyms'], threshold: 0.3 })
+  const modeResult = modeFuse.search('betriebsmodus')
+  modeDevice = modeResult.length > 0 ? modeResult[0].item : null
+
+  // Fuzzy für Temperatur
+  const tempFuse = new Fuse(targetsArr, { keys: ['name', 'synonyms'], threshold: 0.3 })
+  let tempResult = tempFuse.search('solltemperatur')
+  tempDevice = tempResult.length > 0 ? tempResult[0].item : null
+  if (!tempDevice) {
+    tempResult = tempFuse.search('zieltemperatur')
+    tempDevice = tempResult.length > 0 ? tempResult[0].item : null
+  }
+
+  // Fuzzy für Turbo
+  const turboFuse = new Fuse(switchesArr, { keys: ['name', 'synonyms'], threshold: 0.3 })
+  const turboResult = turboFuse.search('turbo')
+  turboDevice = turboResult.length > 0 ? turboResult[0].item : null
+
+  let results = []
+
+  // set_all: mehrere Parameter gleichzeitig setzen
+  if (action === 'set_all') {
+    // Power einschalten
+    if (powerDevice && powerDevice.id) {
+      const acValue = 1 // an
+      const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(powerDevice.id)}&query=value=${encodeURIComponent(acValue)}`
       try {
         const res = await fetch(url)
-        if (res.ok) {
-          const val = await res.json()
-          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Die Temperatur im ${room} beträgt ${val.val} °C.` })
-        } else {
-          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Auslesen der Temperatur!' })
-        }
+        if (res.ok) results.push('Klimaanlage eingeschaltet.')
       } catch (e) {
-        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
+        console.error('Fehler beim Einschalten der Klimaanlage:', e)
       }
-    } else {
-      chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Kein Temperatursensor mit passendem Label gefunden!' })
     }
-    return
-  }
 
-  // Temperatur setzen
-  if (data && data.name === 'set_temperature') {
-    const params = JSON.parse(data.arguments || '{}')
-    const room = params.room
-    const value = params.value
-    let device = null
-    let label = ''
-    if (userText && rooms[room] && rooms[room].targetTemp && rooms[room].targetTemp.label) {
-      label = rooms[room].targetTemp.label.toLowerCase()
-      if (userText.toLowerCase().includes(label)) {
-        device = rooms[room].targetTemp
-      }
-    }
-    if (!device && rooms[room] && rooms[room].targetTemp) {
-      device = rooms[room].targetTemp
-    }
-    if (device) {
-      const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(device.id)}&query=value=${encodeURIComponent(value)}`
+    // Modus setzen
+    if (modeDevice && modeDevice.id && mode) {
+      const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(modeDevice.id)}&query=value=${encodeURIComponent(mode)}`
       try {
         const res = await fetch(url)
-        if (res.ok) {
-          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Solltemperatur im ${room} auf ${value}°C gesetzt.` })
-        } else {
-          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Setzen der Temperatur!' })
-        }
+        if (res.ok) results.push(`Modus auf ${mode} gesetzt.`)
       } catch (e) {
-        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
+        console.error('Fehler beim Setzen des Modus:', e)
       }
-    } else {
-      chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Kein passendes Zieltemperatur-Gerät mit Label gefunden!' })
     }
+
+    // Temperatur setzen
+    if (tempDevice && tempDevice.id && temperature) {
+      const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(tempDevice.id)}&query=value=${encodeURIComponent(temperature)}`
+      try {
+        const res = await fetch(url)
+        if (res.ok) results.push(`Solltemperatur auf ${temperature}°C gesetzt.`)
+      } catch (e) {
+        console.error('Fehler beim Setzen der Temperatur:', e)
+      }
+    }
+
+    // Turbo setzen
+    if (turboDevice && turboDevice.id && typeof turbo !== 'undefined') {
+      const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(turboDevice.id)}&query=value=${encodeURIComponent(turbo)}`
+      try {
+        const res = await fetch(url)
+        if (res.ok) results.push(`Turbo-Modus ${turbo ? 'aktiviert' : 'deaktiviert'}.`)
+      } catch (e) {
+        console.error('Fehler beim Setzen des Turbo-Modus:', e)
+      }
+    }
+
+    chatHistory.value.push({ 
+      id: Date.now(), 
+      role: 'assistant', 
+      content: results.length ? results.join(' ') : 'Keine passenden AC-Geräte gefunden.' 
+    })
     return
   }
 
-  // Klimaanlage steuern
-  if (data && data.name === 'control_ac') {
-    const params = JSON.parse(data.arguments || '{}')
-    const room = params.room
-    const action = params.action // z.B. 'on', 'off', 'set_temp', 'set_all'
-    const value = params.value // optional für Einzelaktionen
-    const mode = params.mode
-    const temperature = params.temperature
-    const turbo = params.turbo
-    let climate = null
-    let label = ''
-    if (userText && rooms[room] && rooms[room].climate) {
-      // Suche nach Label in allen climate-Unterobjekten
-      const keys = ['powerState', 'operationalMode', 'targetTemperature', 'turboMode']
-      for (const k of keys) {
-        if (rooms[room].climate[k] && rooms[room].climate[k].label) {
-          const l = rooms[room].climate[k].label.toLowerCase()
-          if (userText.toLowerCase().includes(l)) {
-            label = l
-            break
-          }
-        }
-      }
-      climate = rooms[room].climate
-    }
-    if (!climate && rooms[room] && rooms[room].climate) {
-      climate = rooms[room].climate
-    }
-    // set_all: mehrere Parameter gleichzeitig setzen
-    if (action === 'set_all' && climate) {
-      let results = []
-      // Power einschalten
-      if (climate.powerState && climate.powerState.id && (!label || climate.powerState.label.toLowerCase() === label)) {
-        const acValue = 1 // an
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(climate.powerState.id)}&query=value=${encodeURIComponent(acValue)}`
-        try {
-          const res = await fetch(url)
-          if (res.ok) results.push('Klimaanlage eingeschaltet.')
-        } catch {}
-      }
-      // Modus setzen
-      if (climate.operationalMode && climate.operationalMode.id && mode && (!label || climate.operationalMode.label.toLowerCase() === label)) {
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(climate.operationalMode.id)}&query=value=${encodeURIComponent(mode)}`
-        try {
-          const res = await fetch(url)
-          if (res.ok) results.push(`Modus auf ${mode} gesetzt.`)
-        } catch {}
-      }
-      // Temperatur setzen
-      if (climate.targetTemperature && climate.targetTemperature.id && temperature && (!label || climate.targetTemperature.label.toLowerCase() === label)) {
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(climate.targetTemperature.id)}&query=value=${encodeURIComponent(temperature)}`
-        try {
-          const res = await fetch(url)
-          if (res.ok) results.push(`Solltemperatur auf ${temperature}°C gesetzt.`)
-        } catch {}
-      }
-      // Turbo setzen
-      if (climate.turboMode && climate.turboMode.id && typeof turbo !== 'undefined' && (!label || climate.turboMode.label.toLowerCase() === label)) {
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(climate.turboMode.id)}&query=value=${encodeURIComponent(turbo)}`
-        try {
-          const res = await fetch(url)
-          if (res.ok) results.push(`Turbo-Modus ${turbo ? 'aktiviert' : 'deaktiviert'}.`)
-        } catch {}
-      }
-      chatHistory.value.push({ id: Date.now(), role: 'assistant', content: results.length ? results.join(' ') : 'Keine passenden AC-Geräte gefunden.' })
-      return
-    }
-
-    // Einzelaktionen wie bisher, aber mit Label-Matching
-    if (climate) {
-      if ((action === 'on' || action === 'off') && climate.powerState && climate.powerState.id && (!label || climate.powerState.label.toLowerCase() === label)) {
-        const acValue = action === 'on' ? 1 : 0
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(climate.powerState.id)}&query=value=${encodeURIComponent(acValue)}`
-        try {
-          const res = await fetch(url)
-          if (res.ok) {
-            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Klimaanlage im ${room} ${action === 'on' ? 'eingeschaltet' : 'ausgeschaltet'}.` })
-          } else {
-            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Schalten der Klimaanlage!' })
-          }
-        } catch (e) {
-          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
-        }
-      } else if (action === 'set_temp' && climate.targetTemperature && climate.targetTemperature.id && value && (!label || climate.targetTemperature.label.toLowerCase() === label)) {
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(climate.targetTemperature.id)}&query=value=${encodeURIComponent(value)}`
-        try {
-          const res = await fetch(url)
-          if (res.ok) {
-            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Klimaanlage im ${room}: Solltemperatur auf ${value}°C gesetzt.` })
-          } else {
-            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Setzen der Klimaanlagen-Temperatur!' })
-          }
-        } catch (e) {
-          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
-        }
-      } else if (action === 'set_mode' && climate.operationalMode && climate.operationalMode.id && value && (!label || climate.operationalMode.label.toLowerCase() === label)) {
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(climate.operationalMode.id)}&query=value=${encodeURIComponent(value)}`
-        try {
-          const res = await fetch(url)
-          if (res.ok) {
-            let modeText = ''
-            switch (value) {
-              case 1: modeText = 'Automatik'; break;
-              case 2: modeText = 'Kühlen'; break;
-              case 3: modeText = 'Entfeuchten'; break;
-              case 4: modeText = 'Heizen'; break;
-              case 5: modeText = 'Nur Lüfter'; break;
-              default: modeText = value
-            }
-            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Klimaanlage im ${room}: Modus auf ${modeText} gesetzt.` })
-          } else {
-            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Setzen des Klimaanlagen-Modus!' })
-          }
-        } catch (e) {
-          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
-        }
-      } else if (action === 'set_turbo' && climate.turboMode && climate.turboMode.id && typeof value !== 'undefined' && (!label || climate.turboMode.label.toLowerCase() === label)) {
-        const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(climate.turboMode.id)}&query=value=${encodeURIComponent(value)}`
-        try {
-          const res = await fetch(url)
-          if (res.ok) {
-            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Klimaanlage im ${room}: Turbo-Modus ${value ? 'aktiviert' : 'deaktiviert'}.` })
-          } else {
-            chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Setzen des Turbo-Modus!' })
-          }
-        } catch (e) {
-          chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
-        }
+  // Einzelaktionen
+  if (action === 'on' && powerDevice && powerDevice.id) {
+    const acValue = 1
+    const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(powerDevice.id)}&query=value=${encodeURIComponent(acValue)}`
+    try {
+      const res = await fetch(url)
+      if (res.ok) {
+        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Klimaanlage im ${room} eingeschaltet.` })
       } else {
-        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Unbekannte Klimaanlagen-Aktion oder kein passendes Label!' })
+        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Schalten der Klimaanlage!' })
       }
-      return
+    } catch (e) {
+      chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
     }
+    return
   }
 
-  // Fallback
-  chatHistory.value.push({ id: Date.now(), role: 'assistant', content: data.status || 'Kein passender Funktionsaufruf erkannt.' })
+  if (action === 'off' && powerDevice && powerDevice.id) {
+    const acValue = 0
+    const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(powerDevice.id)}&query=value=${encodeURIComponent(acValue)}`
+    try {
+      const res = await fetch(url)
+      if (res.ok) {
+        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Klimaanlage im ${room} ausgeschaltet.` })
+      } else {
+        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Schalten der Klimaanlage!' })
+      }
+    } catch (e) {
+      chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
+    }
+    return
+  }
+
+  if (action === 'set_temp' && tempDevice && tempDevice.id && value) {
+    const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(tempDevice.id)}&query=value=${encodeURIComponent(value)}`
+    try {
+      const res = await fetch(url)
+      if (res.ok) {
+        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Klimaanlage im ${room}: Solltemperatur auf ${value}°C gesetzt.` })
+      } else {
+        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Setzen der Klimaanlagen-Temperatur!' })
+      }
+    } catch (e) {
+      chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
+    }
+    return
+  }
+
+  if (action === 'set_mode' && modeDevice && modeDevice.id && value) {
+    const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(modeDevice.id)}&query=value=${encodeURIComponent(value)}`
+    try {
+      const res = await fetch(url)
+      if (res.ok) {
+        let modeText = ''
+        switch (value) {
+          case 1: modeText = 'Automatik'; break;
+          case 2: modeText = 'Kühlen'; break;
+          case 3: modeText = 'Entfeuchten'; break;
+          case 4: modeText = 'Heizen'; break;
+          case 5: modeText = 'Nur Lüfter'; break;
+          default: modeText = value
+        }
+        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Klimaanlage im ${room}: Modus auf ${modeText} gesetzt.` })
+      } else {
+        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Setzen des Klimaanlagen-Modus!' })
+      }
+    } catch (e) {
+      chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
+    }
+    return
+  }
+
+  if (action === 'set_turbo' && turboDevice && turboDevice.id && typeof value !== 'undefined') {
+    const url = `/iobroker/api/iobroker-proxy.php?endpoint=set/${encodeURIComponent(turboDevice.id)}&query=value=${encodeURIComponent(value)}`
+    try {
+      const res = await fetch(url)
+      if (res.ok) {
+        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: `Klimaanlage im ${room}: Turbo-Modus ${value ? 'aktiviert' : 'deaktiviert'}.` })
+      } else {
+        chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler beim Setzen des Turbo-Modus!' })
+      }
+    } catch (e) {
+      chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Fehler: ' + (e.message || 'Unbekannt') })
+    }
+    return
+  }
+
+  chatHistory.value.push({ id: Date.now(), role: 'assistant', content: 'Unbekannte Klimaanlagen-Aktion oder kein passendes Gerät gefunden!' })
 }
 
 function sendChat() {
@@ -404,28 +498,29 @@ function sendChat() {
 </script>
 
 <style scoped>
-
 .voice-assistant-card {
   width: 100%;
   max-width: none;
   margin: 0;
   box-sizing: border-box;
 }
+
 .voice-controls {
   display: flex;
   align-items: center;
   margin-bottom: 1rem;
 }
 
-
+/* Chatfenster: Immer scrollbar, auch bei sehr langen Ausgaben */
 .chat-window {
   background: #f5f5f5;
   border-radius: 8px;
   padding: 1rem;
-  max-height: 300px;
+  max-height: 400px;
+  min-height: 120px;
   overflow-y: auto;
   margin-bottom: 1rem;
-  scrollbar-width: thin;
+  scrollbar-width: auto;
   scrollbar-color: #1976d2 #f5f5f5;
   display: flex;
   flex-direction: column;

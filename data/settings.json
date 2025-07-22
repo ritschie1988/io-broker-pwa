@@ -1,0 +1,11 @@
+{
+    "pv_settings": {
+        "pvThreshold": 3000,
+        "tempMin": 50,
+        "tempMax": 65
+    },
+    "general": {
+        "darkTheme": true,
+        "notifications": false
+    }
+}

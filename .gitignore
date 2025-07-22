@@ -37,6 +37,8 @@ data/Von_Bartels_Daten/bartels_data.db
 public/assets/index-uR0_9BNd.css
 public/assets/index-CV-K4_Yb.js
 public/api/Von_Bartels_Daten/status.json
+data/pv_heizstab_settings.json
+data/rooms.json
 .env
 public/api/Von_Bartels_Daten/bartels_data.db
 public/api/Von_Bartels_Daten/letzte_daten.json

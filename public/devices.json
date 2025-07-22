@@ -1,55 +1,416 @@
 {
   "wohnzimmer": [
-    { "id": "sonoff.0.WohnzimmerLicht.POWER", "name": "Wohnzimmerlicht", "synonyms": ["Hauptlicht", "Licht", "Lampe"], "type": "switch", "onValue": 1, "offValue": 0, "actions": ["schalte"] },
-    { "id": "0_userdata.0.WohnzimmerAmbientePower", "name": "Fernsehlicht", "synonyms": ["Ambiente", "Fernsehlicht", "Stimmungslicht"], "type": "switch", "onValue": 1, "offValue": 0, "actions": ["schalte"] },
-    { "id": "tuya.0.bf2557b234ab753959fp8n.1", "name": "Wohnzimmer Temperatur", "synonyms": ["Temperatur Wohnzimmer", "Raumtemperatur Wohnzimmer"], "type": "sensor", "unit": "°C" },
-    { "id": "0_userdata.0.Soll-Temperatur_Wohnzimmer", "name": "Solltemperatur Wohnzimmer", "synonyms": ["Zieltemperatur Wohnzimmer", "Sollwert Wohnzimmer"], "type": "target", "unit": "°C" },
-    { "id": "sonoff.0.IRWohnzimmer.HTU21_Humidity", "name": "Wohnzimmer Luftfeuchte", "synonyms": ["Feuchtigkeit Wohnzimmer", "Luftfeuchte Wohnzimmer"], "type": "sensor", "unit": "%" },
-    { "id": "sonoff.0.IRWohnzimmer.HTU21_DewPoint", "name": "Wohnzimmer Taupunkt", "synonyms": ["Taupunkt Wohnzimmer"], "type": "sensor", "unit": "°C" },
-    { "id": "mqtt.0.HeizungThermostatWZ1.Relay.State", "name": "Thermostat Wohnzimmer", "synonyms": ["Thermostat Wohnzimmer", "Heizung Wohnzimmer"], "type": "switch", "onValue": 1, "offValue": 0, "actions": ["schalte"] },
-    { "id": "sonoff.0.IRWohnzimmer.POWER", "name": "Wohnzimmer Infrarot", "synonyms": ["Infrarot Wohnzimmer", "IR Wohnzimmer"], "type": "switch", "onValue": true, "offValue": false, "actions": ["schalte"] },
-    { "id": "sonoff.0.PowerWZ.ENERGY_Today", "name": "Wohnzimmer Energie heute", "synonyms": ["Energieverbrauch Wohnzimmer heute"], "type": "sensor", "unit": "kWh" },
-    { "id": "sonoff.0.PowerWZ.ENERGY_Today", "name": "Wohnzimmer Energie Monat", "synonyms": ["Energieverbrauch Wohnzimmer Monat"], "type": "sensor", "unit": "kWh" },
-    { "id": "midea.0.145135534992585.control.powerState", "name": "Wohnzimmer Klima Power", "synonyms": ["Klimaanlage Wohnzimmer", "Klima Wohnzimmer"], "type": "switch", "onValue": true, "offValue": false, "actions": ["schalte"] },
-    { "id": "midea.0.145135534992585.control.targetTemperature", "name": "Wohnzimmer Klima Solltemperatur", "synonyms": ["Klima Zieltemperatur Wohnzimmer"], "type": "target", "unit": "°C" }
+    {
+      "id": "sonoff.0.WohnzimmerLicht.POWER",
+      "name": "Wohnzimmerlicht",
+      "synonyms": ["Hauptlicht", "Licht", "Lampe"],
+      "type": "switch",
+      "onValue": 1,
+      "offValue": 0,
+      "actions": ["schalte"]
+    },
+    {
+      "id": "0_userdata.0.WohnzimmerAmbientePower",
+      "name": "Fernsehlicht",
+      "synonyms": ["Ambiente", "Fernsehlicht", "Stimmungslicht"],
+      "type": "switch",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["schalte"]
+    },
+    {
+      "id": "tuya.0.bf2557b234ab753959fp8n.1",
+      "name": "Wohnzimmer Temperatur",
+      "synonyms": ["Temperatur Wohnzimmer", "Raumtemperatur Wohnzimmer"],
+      "type": "sensor",
+      "unit": "°C"
+    },
+    {
+      "id": "0_userdata.0.Soll-Temperatur_Wohnzimmer",
+      "name": "Solltemperatur Wohnzimmer",
+      "synonyms": ["Zieltemperatur Wohnzimmer", "Sollwert Wohnzimmer"],
+      "type": "target",
+      "unit": "°C"
+    },
+    {
+      "id": "sonoff.0.IRWohnzimmer.HTU21_Humidity",
+      "name": "Wohnzimmer Luftfeuchte",
+      "synonyms": ["Feuchtigkeit Wohnzimmer", "Luftfeuchte Wohnzimmer"],
+      "type": "sensor",
+      "unit": "%"
+    },
+    {
+      "id": "sonoff.0.IRWohnzimmer.HTU21_DewPoint",
+      "name": "Wohnzimmer Taupunkt",
+      "synonyms": ["Taupunkt Wohnzimmer"],
+      "type": "sensor",
+      "unit": "°C"
+    },
+    {
+      "id": "mqtt.0.HeizungThermostatWZ1.Relay.State",
+      "name": "Thermostat Wohnzimmer",
+      "synonyms": ["Thermostat Wohnzimmer", "Heizung Wohnzimmer"],
+      "type": "switch",
+      "onValue": 1,
+      "offValue": 0,
+      "actions": ["schalte"]
+    },
+    {
+      "id": "sonoff.0.IRWohnzimmer.POWER",
+      "name": "Wohnzimmer Infrarot",
+      "synonyms": ["Infrarot Wohnzimmer", "IR Wohnzimmer"],
+      "type": "switch",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["schalte"]
+    },
+    {
+      "id": "sonoff.0.PowerWZ.ENERGY_Today",
+      "name": "Wohnzimmer Energie heute",
+      "synonyms": ["Energieverbrauch Wohnzimmer heute"],
+      "type": "sensor",
+      "unit": "kWh"
+    },
+    {
+      "id": "sonoff.0.PowerWZ.ENERGY_Today",
+      "name": "Wohnzimmer Energie Monat",
+      "synonyms": ["Energieverbrauch Wohnzimmer Monat"],
+      "type": "sensor",
+      "unit": "kWh"
+    },
+    {
+      "id": "midea.0.145135534992585.control.powerState",
+      "name": "Wohnzimmer Klima Power",
+      "synonyms": ["Klimaanlage Wohnzimmer", "Klima Wohnzimmer"],
+      "type": "switch",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["schalte"]
+    },
+    {
+      "id": "midea.0.145135534992585.control.targetTemperature",
+      "name": "Wohnzimmer Klima Solltemperatur",
+      "synonyms": ["Klima Zieltemperatur Wohnzimmer"],
+      "type": "target",
+      "unit": "°C"
+    },
+    {
+      "id": "midea.0.145135534992585.control.operationalMode",
+      "name": "Wohnzimmer Klima Betriebsmodus",
+      "synonyms": ["Klima Betriebsmodus Wohnzimmer"],
+      "type": "switch",
+      "value": ["1=auto", "2=cool", "3=heat", "4=dry", "5=fan"],
+      "actions": ["stelle"]
+    },
+    {
+      "id": "alias.0.shelly.0.shellyplus2pmc82e1809c2701.Cover0.Open",
+      "name": "Wohnzimmer Rollladen links öffnen",
+      "synonyms": ["Rollladen", "Rollo links", "links"],
+      "type": "shutter",
+      "upValue": 1,
+      "downValue": 0,
+      "actions": ["öffne", "hoch", "auf"]
+    },
+    {
+      "id": "alias.0.shelly.0.shellyplus2pmc82e1809c2701.Cover0.Close",
+      "name": "Wohnzimmer Rollladen links schließen",
+      "synonyms": ["Rollladen", "Rollo links", "links"],
+      "type": "shutter",
+      "upValue": 1,
+      "downValue": 0,
+      "actions": ["schließe", "runter", "zu"]
+    },
+    {
+      "id": "alias.0.shelly.0.shellyplus2pmc82e1809c2701.Cover0.Position",
+      "name": "Wohnzimmer Rollladen links position",
+      "synonyms": ["Rollladen","Position", "Rollo links", "links"],
+      "type": "shutter",
+      "actions": ["stelle", "setze"]
+    },
+    {
+      "id": "alias.0.shelly.0.shellyplus2pmc82e1809c2701.Cover0.Stop",
+      "name": "Wohnzimmer Rollladen links stop",
+      "synonyms": ["Rollladen", "Rollo links", "links"],
+      "type": "shutter",
+      "actions": ["stoppe"]
+    },
+    {
+      "id": "alias.0.shelly.0.shellyplus2pmc82e18096a181.Cover0.Open",
+      "name": "Wohnzimmer Rollladen rechts öffnen",
+      "synonyms": ["Rollladen", "Rollo rechts", "rechts"],
+      "type": "shutter",
+      "upValue": 1,
+      "downValue": 0,
+      "actions": ["öffne", "hoch", "auf"]
+    },
+    {
+      "id": "alias.0.shelly.0.shellyplus2pmc82e18096a181.Cover0.Close",
+      "name": "Wohnzimmer Rollladen rechts schließen",
+      "synonyms": ["Rollladen", "Rollo rechts", "rechts"],
+      "type": "shutter",
+      "Value": true,
+      "actions": ["schließe", "runter", "zu"]
+    },
+    {
+      "id": "alias.0.shelly.0.shellyplus2pmc82e18096a181.Cover0.Position",
+      "name": "Wohnzimmer Rollladen rechts position",
+      "synonyms": ["Rollladen","Position","Rollo rechts","rechts"],
+      "type": "shutter",
+      "actions": ["stelle", "setze"]
+    },
+    {
+      "id": "alias.0.shelly.0.shellyplus2pmc82e18096a181.Cover0.Stop",
+      "name": "Wohnzimmer Rollladen rechts stop",
+      "synonyms": ["Rollladen", "Rollo rechts", "rechts"],
+      "type": "shutter",
+      "actions": ["stoppe"]
+    }
   ],
   "schlafzimmer": [
-    { "id": "sonoff.0.SZLightMain.POWER", "name": "Schlafzimmerlicht", "synonyms": ["Hauptlicht Schlafzimmer", "Schlafzimmer Licht", "Lampe Schlafzimmer"], "type": "switch", "onValue": 1, "offValue": 0, "actions": ["schalte"] },
-    { "id": "sonoff.0.SchlafzimmerNachtlicht.ENERGY_Power", "name": "Nachtlicht", "synonyms": ["Nachtlicht", "Schlaflicht", "Licht Nacht"], "type": "switch", "onValue": 1, "offValue": 0, "actions": ["schalte"] },
-    { "id": "mqtt.0.Innentemperatur_1.BMP280.Temperature", "name": "Schlafzimmer Temperatur", "synonyms": ["Temperatur Schlafzimmer", "Raumtemperatur Schlafzimmer"], "type": "sensor", "unit": "°C" },
-    { "id": "0_userdata.0.Soll-Temperatur_Schlafzimmer", "name": "Solltemperatur Schlafzimmer", "synonyms": ["Zieltemperatur Schlafzimmer", "Sollwert Schlafzimmer"], "type": "target", "unit": "°C" },
-    { "id": "mqtt.0.Innentemperatur_1.BMP280.Humidity", "name": "Schlafzimmer Luftfeuchte", "synonyms": ["Feuchtigkeit Schlafzimmer", "Luftfeuchte Schlafzimmer"], "type": "sensor", "unit": "%" },
-    { "id": "midea.0.19791209303536.control.powerState", "name": "Schlafzimmer Klima Power", "synonyms": ["Klimaanlage Schlafzimmer", "Klima Schlafzimmer"], "type": "switch", "onValue": true, "offValue": false, "actions": ["schalte"] },
-    { "id": "midea.0.19791209303536.control.targetTemperature", "name": "Schlafzimmer Klima Solltemperatur", "synonyms": ["Klima Zieltemperatur Schlafzimmer"], "type": "target", "unit": "°C" }
+    {
+      "id": "sonoff.0.SZLightMain.POWER",
+      "name": "Schlafzimmerlicht",
+      "synonyms": ["Hauptlicht", "Licht", "Lampe"],
+      "type": "switch",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["schalte"]
+    },
+    {
+      "id": "sonoff.0.SchlafzimmerNachtlicht.ENERGY_Power",
+      "name": "Nachtlicht",
+      "synonyms": ["Nachtlicht", "Schlaflicht", "Licht Nacht"],
+      "type": "switch",
+      "onValue": 1,
+      "offValue": 0,
+      "actions": ["schalte"]
+    },
+    {
+      "id": "mqtt.0.Innentemperatur_1.BMP280.Temperature",
+      "name": "Schlafzimmer Temperatur",
+      "synonyms": ["Temperatur Schlafzimmer", "Raumtemperatur Schlafzimmer"],
+      "type": "sensor",
+      "unit": "°C"
+    },
+    {
+      "id": "0_userdata.0.Soll-Temperatur_Schlafzimmer",
+      "name": "Solltemperatur Schlafzimmer",
+      "synonyms": ["Zieltemperatur Schlafzimmer", "Sollwert Schlafzimmer"],
+      "type": "target",
+      "unit": "°C"
+    },
+    {
+      "id": "mqtt.0.Innentemperatur_1.BMP280.Humidity",
+      "name": "Schlafzimmer Luftfeuchte",
+      "synonyms": ["Feuchtigkeit Schlafzimmer", "Luftfeuchte Schlafzimmer"],
+      "type": "sensor",
+      "unit": "%"
+    },
+    {
+      "id": "midea.0.19791209303536.control.powerState",
+      "name": "Schlafzimmer Klima Power",
+      "synonyms": ["Klimaanlage Schlafzimmer", "Klima Schlafzimmer"],
+      "type": "switch",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["schalte"]
+    },
+    {
+      "id": "midea.0.19791209303536.control.targetTemperature",
+      "name": "Schlafzimmer Klima Solltemperatur",
+      "synonyms": ["Klima Zieltemperatur Schlafzimmer"],
+      "type": "target",
+      "unit": "°C"
+    },
+    {
+      "id": "midea.0.19791209303536.control.operationalMode",
+      "name": "Schlafzimmer Klima Betriebsmodus",
+      "synonyms": ["Klima Betriebsmodus Schlafzimmer"],
+      "type": "switch",
+      "value": ["1=auto", "2=cool", "3=heat", "4=dry", "5=fan"],
+      "actions": ["stelle"]
+    },
+    {
+      "id": "alias.0.shelly.0.shellyplus2pmc4d8d550a2941.Cover0.Open",
+      "name": "Schlafzimmer Rollladen",
+      "synonyms": ["Rollladen", "Rollo"],
+      "type": "switch",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["öffne"]
+    },
+    {
+      "id": "alias.0.shelly.0.shellyplus2pmc4d8d550a2941.Cover0.Close",
+      "name": "Schlafzimmer Rollladen",
+      "synonyms": ["Rollladen", "Rollo"],
+      "type": "switch",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["schließe"]
+    },
+    {
+      "id": "alias.0.shelly.0.shellyplus2pmc4d8d550a2941.Cover0.Position",
+      "name": "Schlafzimmer Rollladen",
+      "synonyms": ["Rollladen", "Position", "Rollo"],
+      "type": "target",
+      "unit": "%",
+      "actions": ["stelle"]
+    },
+    {
+      "id": "alias.0.shelly.0.shellyplus2pmc4d8d550a2941.Cover0.Stop",
+      "name": "Schlafzimmer Rollladen stop",
+      "synonyms": ["Rollladen", "Rollo"],
+      "type": "switch",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["stoppe"]
+    }
   ],
   "bad": [
-    { "id": "sonoff.0.PowerBad.ENERGY_Today", "name": "Bad Energie heute", "synonyms": ["Energieverbrauch Bad heute"], "type": "sensor", "unit": "kWh" },
-    { "id": "sonoff.0.PowerBad.ENERGY_Today", "name": "Bad Energie Monat", "synonyms": ["Energieverbrauch Bad Monat"], "type": "sensor", "unit": "kWh" }
+    {
+      "id": "sonoff.0.PowerBad.ENERGY_Today",
+      "name": "Bad Energie heute",
+      "synonyms": ["Energieverbrauch Bad heute"],
+      "type": "sensor",
+      "unit": "kWh"
+    },
+    {
+      "id": "sonoff.0.PowerBad.ENERGY_Today",
+      "name": "Bad Energie Monat",
+      "synonyms": ["Energieverbrauch Bad Monat"],
+      "type": "sensor",
+      "unit": "kWh"
+    }
   ],
   "kueche": [
-    { "id": "sonoff.0.KuecheLicht.POWER", "name": "Küchenlicht", "synonyms": ["Küchenlicht", "Licht Küche", "Lampe Küche"], "type": "switch", "onValue": 1, "offValue": 0, "actions": ["schalte"] },
-    { "id": "alias.0.shelly.0.shellyplus1pm80646FE2A22C.Relay0.Switch", "name": "Kochlicht 1", "synonyms": ["Kochlicht", "Kochlicht 1", "Licht Herd"], "type": "switch", "onValue": 1, "offValue": 0, "actions": ["schalte"] },
-    { "id": "alias.0.shelly.0.shellyplus178ee4ccd3f64.Relay0.Switch", "name": "Kochlicht 2", "synonyms": ["Kochlicht 2", "Licht Kochfeld"], "type": "switch", "onValue": 1, "offValue": 0, "actions": ["schalte"] }
+    {
+      "id": "sonoff.0.KuecheLicht.POWER",
+      "name": "Küchenlicht",
+      "synonyms": ["Küchenlicht", "Licht Küche", "Lampe Küche"],
+      "type": "switch",
+      "onValue": 1,
+      "offValue": 0,
+      "actions": ["schalte"]
+    },
+    {
+      "id": "alias.0.shelly.0.shellyplus1pm80646FE2A22C.Relay0.Switch",
+      "name": "Kochlicht 1",
+      "synonyms": ["Kochlicht", "Kochlicht 1", "Licht Herd"],
+      "type": "switch",
+      "onValue": 1,
+      "offValue": 0,
+      "actions": ["schalte"]
+    },
+    {
+      "id": "alias.0.shelly.0.shellyplus178ee4ccd3f64.Relay0.Switch",
+      "name": "Kochlicht 2",
+      "synonyms": ["Kochlicht 2", "Licht Kochfeld"],
+      "type": "switch",
+      "onValue": 1,
+      "offValue": 0,
+      "actions": ["schalte"]
+    }
   ],
   "vorraum": [
-    { "id": "sonoff.0.VorzimmerLicht.POWER", "name": "Vorzimmerlicht", "synonyms": ["Licht Vorzimmer", "Vorraum Licht", "Licht Flur"], "type": "switch", "onValue": 1, "offValue": 0, "actions": ["schalte"] }
+    {
+      "id": "sonoff.0.VorzimmerLicht.POWER",
+      "name": "Vorzimmerlicht",
+      "synonyms": ["Licht Vorzimmer", "Vorraum Licht", "Licht Flur"],
+      "type": "switch",
+      "onValue": 1,
+      "offValue": 0,
+      "actions": ["schalte"]
+    }
   ],
   "esszimmer": [
-    { "id": "midea.0.DEINE_ESSZIMMER_ID.control.powerState", "name": "Esszimmer Klima Power", "synonyms": ["Klimaanlage Esszimmer", "Klima Esszimmer"], "type": "switch", "onValue": true, "offValue": false, "actions": ["schalte"] },
-    { "id": "midea.0.DEINE_ESSZIMMER_ID.control.targetTemperature", "name": "Esszimmer Klima Solltemperatur", "synonyms": ["Klima Zieltemperatur Esszimmer"], "type": "target", "unit": "°C" }
+    {
+      "id": "midea.0.DEINE_ESSZIMMER_ID.control.powerState",
+      "name": "Esszimmer Klima Power",
+      "synonyms": ["Klimaanlage Esszimmer", "Klima Esszimmer"],
+      "type": "switch",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["schalte"]
+    },
+    {
+      "id": "midea.0.DEINE_ESSZIMMER_ID.control.targetTemperature",
+      "name": "Esszimmer Klima Solltemperatur",
+      "synonyms": ["Klima Zieltemperatur Esszimmer"],
+      "type": "target",
+      "unit": "°C"
+    }
   ],
   "warmwasser": [
-    { "id": "alias.0.shelly.0.shellyplus1pm80646fe2dfd4.Relay0.Energy", "name": "Warmwasser Energie heute", "synonyms": ["Energieverbrauch Warmwasser heute"], "type": "sensor", "unit": "kWh" },
-    { "id": "alias.0.shelly.0.shellyplus1pm80646fe2dfd4.Relay0.Energy", "name": "Warmwasser Energie Monat", "synonyms": ["Energieverbrauch Warmwasser Monat"], "type": "sensor", "unit": "kWh" },
-    { "id": "alias.0.shelly.0.shellyplus1pm80646fe2dfd4.Relay0.Switch", "name": "Warmwasser Power", "synonyms": ["Warmwasser Schalter", "Warmwasser an"], "type": "switch", "onValue": 1, "offValue": 0, "actions": ["schalte"] },
-    { "id": "mqtt.0.WarmWasserSteuerung.DS18B20.WarmwasserOben", "name": "Warmwasser Temperatur oben", "synonyms": ["Warmwasser Temperatur", "Warmwasser oben"], "type": "sensor", "unit": "°C" },
-    { "id": "0_userdata.0.OverrideWarmwasser", "name": "Warmwasser Override", "synonyms": ["Warmwasser Override", "Warmwasser manuell"], "type": "switch", "onValue": true, "offValue": false, "actions": ["schalte"] }
+    {
+      "id": "alias.0.shelly.0.shellyplus1pm80646fe2dfd4.Relay0.Energy",
+      "name": "Warmwasser Energie heute",
+      "synonyms": ["Energieverbrauch Warmwasser heute"],
+      "type": "sensor",
+      "unit": "kWh"
+    },
+    {
+      "id": "alias.0.shelly.0.shellyplus1pm80646fe2dfd4.Relay0.Energy",
+      "name": "Warmwasser Energie Monat",
+      "synonyms": ["Energieverbrauch Warmwasser Monat"],
+      "type": "sensor",
+      "unit": "kWh"
+    },
+    {
+      "id": "alias.0.shelly.0.shellyplus1pm80646fe2dfd4.Relay0.Switch",
+      "name": "Warmwasser Power",
+      "synonyms": ["Warmwasser Schalter", "Warmwasser an"],
+      "type": "switch",
+      "onValue": 1,
+      "offValue": 0,
+      "actions": ["schalte"]
+    },
+    {
+      "id": "mqtt.0.WarmWasserSteuerung.DS18B20.WarmwasserOben",
+      "name": "Warmwasser Temperatur oben",
+      "synonyms": ["Warmwasser Temperatur", "Warmwasser oben"],
+      "type": "sensor",
+      "unit": "°C"
+    },
+    {
+      "id": "0_userdata.0.OverrideWarmwasser",
+      "name": "Warmwasser Override",
+      "synonyms": ["Warmwasser Override", "Warmwasser manuell"],
+      "type": "switch",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["schalte"]
+    }
   ],
   "photovoltaik": [
-    { "id": "0_userdata.0.Photovoltaik.Huawei.Inverter1.Accumulated_energy_yield", "name": "PV Produktion", "synonyms": ["Photovoltaik Produktion", "PV Ertrag"], "type": "sensor", "unit": "kWh" },
-    { "id": "0_userdata.0.Photovoltaik.Huawei.Meter.Positive_active_electricity", "name": "PV Einspeisung", "synonyms": ["Photovoltaik Einspeisung", "PV Einspeisung"], "type": "sensor", "unit": "kWh" },
-    { "id": "0_userdata.0.Photovoltaik.Huawei.Meter.Reverse_active_power", "name": "PV Verbrauch", "synonyms": ["Photovoltaik Verbrauch", "PV Verbrauch"], "type": "sensor", "unit": "kWh" },
-    { "id": "0_userdata.0.Photovoltaik.Huawei.Meter.Active_power", "name": "PV Live Power", "synonyms": ["Photovoltaik Live", "PV Leistung"], "type": "sensor", "unit": "W" }
+    {
+      "id": "0_userdata.0.Photovoltaik.Huawei.Inverter1.Accumulated_energy_yield",
+      "name": "PV Produktion",
+      "synonyms": ["Photovoltaik Produktion", "PV Ertrag"],
+      "type": "sensor",
+      "unit": "kWh"
+    },
+    {
+      "id": "0_userdata.0.Photovoltaik.Huawei.Meter.Positive_active_electricity",
+      "name": "PV Einspeisung",
+      "synonyms": ["Photovoltaik Einspeisung", "PV Einspeisung"],
+      "type": "sensor",
+      "unit": "kWh"
+    },
+    {
+      "id": "0_userdata.0.Photovoltaik.Huawei.Meter.Reverse_active_power",
+      "name": "PV Verbrauch",
+      "synonyms": ["Photovoltaik Verbrauch", "PV Verbrauch"],
+      "type": "sensor",
+      "unit": "kWh"
+    },
+    {
+      "id": "0_userdata.0.Photovoltaik.Huawei.Meter.Active_power",
+      "name": "PV Live Power",
+      "synonyms": ["Photovoltaik Live", "PV Leistung"],
+      "type": "sensor",
+      "unit": "W"
+    }
   ]
 }
+
 

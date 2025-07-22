@@ -11,39 +11,40 @@
     <div v-if="showChat" class="chat-bubble-overlay">
       <div class="chat-bubble">
         <button class="chat-close" @click="showChat = false">×</button>
+        <!-- Flache Struktur: VoiceAssistant direkt, keine weitere Box -->
         <VoiceAssistant />
       </div>
     </div>
   </transition>
   <v-toolbar class="room-toolbar" flat>
-    <v-slide-group
-      v-model="selectedRoom"
-      class="room-menu"
-      show-arrows
-      center-active
-      prev-icon="mdi-chevron-left"
-      next-icon="mdi-chevron-right"
-      mobile-breakpoint="0"
+  <v-slide-group
+    v-model="selectedRoom"
+    class="room-menu"
+    show-arrows
+    center-active
+    prev-icon="mdi-chevron-left"
+    next-icon="mdi-chevron-right"
+    mobile-breakpoint="0"
+  >
+    <v-slide-group-item
+      v-for="room in rooms"
+      :key="room.id"
+      :value="room.id"
     >
-      <v-slide-group-item
-        v-for="room in rooms"
-        :key="room.id"
-        :value="room.id"
+      <v-btn
+        :color="selectedRoom === room.id ? 'primary' : 'default'"
+        class="mx-1"
+        @click="selectedRoom = room.id"
+        rounded
+        text
       >
-        <v-btn
-          :color="selectedRoom === room.id ? 'primary' : 'default'"
-          class="mx-1"
-          @click="selectedRoom = room.id"
-          rounded
-          text
-        >
-          {{ room.name }}
-        </v-btn>
-      </v-slide-group-item>
-    </v-slide-group>
+        {{ room.name }}
+      </v-btn>
+    </v-slide-group-item>
+  </v-slide-group>
   </v-toolbar>
   <v-row class="dashboard-cards">
-    <template v-for="cardName in roomConfigs[selectedRoom]" :key="cardName">
+    <template v-for="cardName in roomConfigs[selectedRoom] || []" :key="cardName">
       <v-col cols="12" md="6" lg="4">
         <component :is="cardComponents[cardName]" :room="selectedRoom" />
       </v-col>
@@ -143,26 +144,37 @@ const notificationMessages = computed(() => {
   return msgs
 })
 
-const rooms = [
-  { id: 'wohnzimmer', name: 'Wohnzimmer' },
-  { id: 'schlafzimmer', name: 'Schlafzimmer' },
-  { id: 'kueche', name: 'Küche/Esszimmer' },
-  { id: 'vorraum', name: 'Vorraum' },
-  { id: 'bad', name: 'Bad' },
-  { id: 'pv', name: 'Photovoltaik' },
-  { id: 'ww', name: 'Warmwasser' },
-]
-const selectedRoom = ref(rooms[0].id)
+const rooms = ref([])
+const selectedRoom = ref('')
+const roomConfigs = ref({})
 
-const roomConfigs = {
-  wohnzimmer: ['ClimateCard', 'LightCard', 'HeizungCard', 'EnergyMonthCard', 'EnergyTodayCard'],
-  schlafzimmer: ['ClimateCard', 'LightCard', 'HeizungCard'],
-  kueche: ['ClimateCard', 'LightCard', 'HeizungCard'],
-  bad: ['HeizungCard', 'EnergyMonthCard', 'EnergyTodayCard'],
-  vorraum: ['LightCard'],
-  pv: ['PVRoom'],
-  ww: ['WarmwasserCard', 'WWSolarCard', 'WarmwasserTempCard', 'EnergyMonthCard', 'EnergyTodayCard'],
+async function loadRoomsConfig() {
+  try {
+    const res = await fetch('/iobroker/api/rooms.php')
+    if (res.ok) {
+      const data = await res.json()
+      rooms.value = data
+      if (data.length > 0) {
+        selectedRoom.value = data[0].id
+      }
+      // roomConfigs als Objekt: { id: [cards] }
+      const configs = {}
+      data.forEach(r => { configs[r.id] = r.cards })
+      roomConfigs.value = configs
+    }
+  } catch (e) {
+    rooms.value = []
+    roomConfigs.value = {}
+  }
 }
+
+onMounted(() => {
+  pollBartelsStatus()
+  pollIoBrokerStatus()
+  setInterval(pollBartelsStatus, 10000)
+  setInterval(pollIoBrokerStatus, 10000)
+  loadRoomsConfig()
+})
 
 const cardComponents = {
   EnergyMonthCard,
@@ -210,6 +222,8 @@ const showChat = ref(false)
   display: flex;
   align-items: flex-end;
 }
+/* Flache Chat-Bubble, Scrollbarkeit für VoiceAssistant-Komponente */
+/* Flache Chat-Bubble, keine eigene Scrollbarkeit, Höhe für VoiceAssistant-Komponente optimiert */
 .chat-bubble {
   background: #fff;
   border-radius: 16px;
@@ -217,14 +231,15 @@ const showChat = ref(false)
   padding: 32px 24px 24px 24px;
   min-width: 320px;
   max-width: 95vw;
-  min-height: 220px;
-  width: 600px;
-  height: 400px;
+  width: 400px;
+  /*height: 480px;*/
   position: relative;
   animation: chat-pop 0.2s;
   display: flex;
   flex-direction: column;
+  /* Keine eigene Scrollbarkeit, alles an VoiceAssistant-Komponente */
 }
+
 @media (max-width: 900px) {
   .chat-bubble {
     width: 95vw;

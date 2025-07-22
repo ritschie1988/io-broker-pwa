@@ -61,10 +61,8 @@ const chartOptions = {
 .donut-value {
   font-size: 2.1rem;
   font-weight: bold;
-  color: #333;
 }
 .donut-unit {
   font-size: 1rem;
-  color: #888;
 }
 </style>

@@ -6,6 +6,20 @@
 $dbPath = '/var/www/html/progpfad/io-broker-pwa/data/Von_Bartels_Daten/bartels_data.db';
 $proxyUrl = 'https://darkorbithome.ddns.net/iobroker/api/iobroker-proxy.php';
 $logFile = '/var/www/html/progpfad/io-broker-pwa/data/logs/pv_heizstab.log';
+$settingsFile = '/var/www/html/progpfad/io-broker-pwa/data/pv_heizstab_settings.json';
+
+// Settings laden
+$pvThreshold = 3500;
+$tempMin = 50;
+$tempMax = 60;
+if (file_exists($settingsFile)) {
+    $settings = json_decode(file_get_contents($settingsFile), true);
+    if (is_array($settings)) {
+        $pvThreshold = isset($settings['pvThreshold']) ? (int)$settings['pvThreshold'] : 3500;
+        $tempMin = isset($settings['tempMin']) ? (int)$settings['tempMin'] : 50;
+        $tempMax = isset($settings['tempMax']) ? (int)$settings['tempMax'] : 60;
+    }
+}
 
 // Datenpunkte
 $dp_power = '0_userdata.0.Photovoltaik.Huawei.Meter.Active_power';
@@ -27,7 +41,6 @@ function logMsg($msg) {
 }
 
 // Helper: ioBroker-Datenpunkt lesen
-// Helper: ioBroker-Datenpunkt lesen (angepasst auf API)
 function getDP($id) {
     global $proxyUrl, $logFile;
     $url = $proxyUrl . '?endpoint=get/' . urlencode($id);
@@ -39,7 +52,6 @@ function getDP($id) {
     return $data['val'] ?? null;
 }
 // Helper: ioBroker-Datenpunkt schreiben
-// Helper: ioBroker-Datenpunkt schreiben (angepasst auf API)
 function setDP($id, $value) {
     global $proxyUrl;
     $url = $proxyUrl . '?endpoint=set/' . urlencode($id) . '?value=' . ($value ? 'true' : 'false');
@@ -80,23 +92,23 @@ if ($relay1 === '1' || $relay1 === 1) {
     exit(0);
 }
 
-// PV-Überschuss vorhanden und Temp < 60°C
-if ($power >= 3500 && $temp < 60) {
+// PV-Überschuss vorhanden und Temp < tempMax
+if ($power >= $pvThreshold && $temp < $tempMax) {
     setDP($dp_heizstab, true);
     logMsg('Heizstab EIN: PV=' . $power . 'W, Temp=' . $temp . '°C');
     exit(0);
 }
 
-// Kein PV-Überschuss, Temperatur < 50°C: Heizstab bis 60°C einschalten
-if ($power < 3500 && $temp < 50) {
+// Kein PV-Überschuss, Temperatur < tempMin: Heizstab bis tempMax einschalten
+if ($power < $pvThreshold && $temp < $tempMin) {
     setDP($dp_heizstab, true);
-    logMsg('Notbetrieb: Heizstab EIN (keine Sonne, Temp < 50°C): PV=' . $power . 'W, Temp=' . $temp . '°C');
+    logMsg('Notbetrieb: Heizstab EIN (keine Sonne, Temp < ' . $tempMin . '°C): PV=' . $power . 'W, Temp=' . $temp . '°C');
     exit(0);
 }
-// Wenn im Notbetrieb Temp >= 60°C, Heizstab wieder ausschalten
-if ($power < 3500 && $temp >= 60) {
+// Wenn im Notbetrieb Temp >= tempMax, Heizstab wieder ausschalten
+if ($power < $pvThreshold && $temp >= $tempMax) {
     setDP($dp_heizstab, false);
-    logMsg('Notbetrieb: Heizstab AUS (Temp >= 60°C): PV=' . $power . 'W, Temp=' . $temp . '°C');
+    logMsg('Notbetrieb: Heizstab AUS (Temp >= ' . $tempMax . '°C): PV=' . $power . 'W, Temp=' . $temp . '°C');
     exit(0);
 }
 

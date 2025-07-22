@@ -10,19 +10,44 @@ const vuetify = createVuetify({
   components,
   directives,
   theme: {
-    defaultTheme: 'myTheme',
+    defaultTheme: 'lightBlue',
     themes: {
-      myTheme: {
+      lightBlue: {
         dark: false,
         colors: {
-          primary: '#2a2e6e', // Dunkelblau
-          secondary: '#7c3aed', // Lila
+          primary: '#2563eb', // Modernes Blau
+          secondary: '#38bdf8', // Helles Blau
+          accent: '#1e40af', // Akzent Dunkelblau
           background: '#f4f6fb',
+          surface: '#ffffff',
+          info: '#0ea5e9',
+          success: '#22d3ee',
+          warning: '#fbbf24',
+          error: '#ef4444',
+        },
+      },
+      darkBlue: {
+        dark: true,
+        colors: {
+          primary: '#60a5fa', // Helles Blau
+          secondary: '#2563eb', // Modernes Blau
+          accent: '#38bdf8',
+          background: '#0f172a',
+          surface: '#1e293b',
+          info: '#38bdf8',
+          success: '#22d3ee',
+          warning: '#fbbf24',
+          error: '#ef4444',
         },
       },
     },
   },
 })
+
+// Für globales Theme-Switching in der App
+if (typeof window !== 'undefined') {
+  window.$vuetify = vuetify;
+}
 
 const view = ref('dashboard')
 const navItems = [
