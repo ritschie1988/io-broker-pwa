@@ -50,7 +50,7 @@
       "id": "mqtt.0.HeizungThermostatWZ1.Relay.State",
       "name": "Thermostat Wohnzimmer",
       "synonyms": ["Thermostat Wohnzimmer", "Heizung Wohnzimmer"],
-      "type": "switch",
+      "type": "heat-switch",
       "onValue": 1,
       "offValue": 0,
       "actions": ["schalte"]
@@ -82,7 +82,7 @@
       "id": "midea.0.145135534992585.control.powerState",
       "name": "Wohnzimmer Klima Power",
       "synonyms": ["Klimaanlage Wohnzimmer", "Klima Wohnzimmer"],
-      "type": "switch",
+      "type": "ac-switch",
       "onValue": true,
       "offValue": false,
       "actions": ["schalte"]
@@ -91,16 +91,25 @@
       "id": "midea.0.145135534992585.control.targetTemperature",
       "name": "Wohnzimmer Klima Solltemperatur",
       "synonyms": ["Klima Zieltemperatur Wohnzimmer"],
-      "type": "target",
+      "type": "ac-target",
       "unit": "°C"
     },
     {
       "id": "midea.0.145135534992585.control.operationalMode",
       "name": "Wohnzimmer Klima Betriebsmodus",
       "synonyms": ["Klima Betriebsmodus Wohnzimmer"],
-      "type": "switch",
+      "type": "ac-mode",
       "value": ["1=auto", "2=cool", "3=heat", "4=dry", "5=fan"],
       "actions": ["stelle"]
+    },
+    {
+      "id": "midea.0.145135534992585.control.turboMode",
+      "name": "Wohnzimmer Klima Turbo-Modus",
+      "synonyms": ["Klima Turbo-Modus Wohnzimmer"],
+      "type": "ac-turbo",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["stelle", "aktiviere", "deaktiviere"]
     },
     {
       "id": "alias.0.shelly.0.shellyplus2pmc82e1809c2701.Cover0.Open",
@@ -186,11 +195,18 @@
       "actions": ["schalte"]
     },
     {
-      "id": "mqtt.0.Innentemperatur_1.BMP280.Temperature",
+      "id": "tuya.0.bf4ee5091e3b1689eer3nq.1",
       "name": "Schlafzimmer Temperatur",
       "synonyms": ["Temperatur Schlafzimmer", "Raumtemperatur Schlafzimmer"],
       "type": "sensor",
       "unit": "°C"
+    },
+    {
+      "id": "tuya.0.bf4ee5091e3b1689eer3nq.2",
+      "name": "Schlafzimmer Luftfeuchte",
+      "synonyms": ["Feuchtigkeit Schlafzimmer", "Luftfeuchte Schlafzimmer"],
+      "type": "sensor",
+      "unit": "%"
     },
     {
       "id": "0_userdata.0.Soll-Temperatur_Schlafzimmer",
@@ -198,6 +214,15 @@
       "synonyms": ["Zieltemperatur Schlafzimmer", "Sollwert Schlafzimmer"],
       "type": "target",
       "unit": "°C"
+    },
+    {
+      "id": "mqtt.0.HeizungThermostatSZ.Relay.State",
+      "name": "Thermostat Schlafzimmer",
+      "synonyms": ["Thermostat Schlafzimmer", "Heizung Schlafzimmer"],
+      "type": "heat-switch",
+      "onValue": 1,
+      "offValue": 0,
+      "actions": ["schalte"]
     },
     {
       "id": "mqtt.0.Innentemperatur_1.BMP280.Humidity",
@@ -210,7 +235,7 @@
       "id": "midea.0.19791209303536.control.powerState",
       "name": "Schlafzimmer Klima Power",
       "synonyms": ["Klimaanlage Schlafzimmer", "Klima Schlafzimmer"],
-      "type": "switch",
+      "type": "ac-switch",
       "onValue": true,
       "offValue": false,
       "actions": ["schalte"]
@@ -219,40 +244,49 @@
       "id": "midea.0.19791209303536.control.targetTemperature",
       "name": "Schlafzimmer Klima Solltemperatur",
       "synonyms": ["Klima Zieltemperatur Schlafzimmer"],
-      "type": "target",
+      "type": "ac-target",
       "unit": "°C"
     },
     {
       "id": "midea.0.19791209303536.control.operationalMode",
       "name": "Schlafzimmer Klima Betriebsmodus",
       "synonyms": ["Klima Betriebsmodus Schlafzimmer"],
-      "type": "switch",
+      "type": "ac-mode",
       "value": ["1=auto", "2=cool", "3=heat", "4=dry", "5=fan"],
       "actions": ["stelle"]
     },
     {
+      "id": "midea.0.19791209303536.control.turboMode",
+      "name": "Schlafzimmer Klima Turbo-Modus",
+      "synonyms": ["Klima Turbo-Modus Schlafzimmer"],
+      "type": "ac-turbo",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["stelle", "aktiviere", "deaktiviere"]
+    },
+    {
       "id": "alias.0.shelly.0.shellyplus2pmc4d8d550a2941.Cover0.Open",
-      "name": "Schlafzimmer Rollladen",
+      "name": "Schlafzimmer Rollladen open",
       "synonyms": ["Rollladen", "Rollo"],
-      "type": "switch",
+      "type": "shutter",
       "onValue": true,
       "offValue": false,
       "actions": ["öffne"]
     },
     {
       "id": "alias.0.shelly.0.shellyplus2pmc4d8d550a2941.Cover0.Close",
-      "name": "Schlafzimmer Rollladen",
+      "name": "Schlafzimmer Rollladen close",
       "synonyms": ["Rollladen", "Rollo"],
-      "type": "switch",
+      "type": "shutter",
       "onValue": true,
       "offValue": false,
       "actions": ["schließe"]
     },
     {
       "id": "alias.0.shelly.0.shellyplus2pmc4d8d550a2941.Cover0.Position",
-      "name": "Schlafzimmer Rollladen",
+      "name": "Schlafzimmer Rollladen position",
       "synonyms": ["Rollladen", "Position", "Rollo"],
-      "type": "target",
+      "type": "shutter",
       "unit": "%",
       "actions": ["stelle"]
     },
@@ -260,7 +294,7 @@
       "id": "alias.0.shelly.0.shellyplus2pmc4d8d550a2941.Cover0.Stop",
       "name": "Schlafzimmer Rollladen stop",
       "synonyms": ["Rollladen", "Rollo"],
-      "type": "switch",
+      "type": "shutter",
       "onValue": true,
       "offValue": false,
       "actions": ["stoppe"]
@@ -338,6 +372,29 @@
       "synonyms": ["Klima Zieltemperatur Esszimmer"],
       "type": "target",
       "unit": "°C"
+    },
+    {
+      "id": "mqtt.0.HeizungThermostatEssz.Relay.State",
+      "name": "Thermostat Esszimmer",
+      "synonyms": ["Thermostat Esszimmer", "Heizung Esszimmer"],
+      "type": "heat-switch",
+      "onValue": 1,
+      "offValue": 0,
+      "actions": ["schalte"]
+    },
+    {
+      "id": "mqtt.0.HeizungThermostatEZ.TempEZ",
+      "name": "Esszimmer Temperatur",
+      "synonyms": ["Temperatur Esszimmer", "Raumtemperatur Esszimmer"],
+      "type": "sensor",
+      "unit": "°C"
+    },
+    {
+      "id": "0_userdata.0.Soll-Temperatur_Esszimmer",
+      "name": "Solltemperatur Esszimmer",
+      "synonyms": ["Zieltemperatur Esszimmer", "Sollwert Esszimmer"],
+      "type": "target",
+      "unit": "°C"
     }
   ],
   "warmwasser": [
@@ -410,7 +467,35 @@
       "type": "sensor",
       "unit": "W"
     }
+  ],
+  "Garten": [
+    {
+      "id": "shelly.0.shellyplus1pm#4855199c0d9c#1.Relay0.Switch",
+      "name": "Terrassenlicht",
+      "synonyms": ["Licht Terrassen", "Terrasse Licht"],
+      "type": "switch",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["schalte"]
+    },
+    {
+      "id": "tuya.0.bf283d959302c27ad7jkvl.1",
+      "name": "Aussen Temperatur",
+      "synonyms": ["Temperatur Aussen", "Aussentemperatur"],
+      "type": "sensor",
+      "unit": "°C"
+    }
+  ],
+  "Waschküche": [
+    {
+      "id": "mqtt.0.Waschküche_1.Waschküche.Temperature",
+      "name": "Waschküche Temperatur",
+      "synonyms": ["Temperatur Waschküche", "Raumtemperatur Waschküche"],
+      "type": "sensor",
+      "unit": "°C"
+    }
   ]
+
 }
 
 

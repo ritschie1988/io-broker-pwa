@@ -84,6 +84,7 @@ const availableCards = [
   'WarmwasserTempCard',
   'WWSolarCard',
   'PVRoom',
+  'ShutterCard',
 ]
 
 

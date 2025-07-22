@@ -64,6 +64,7 @@ import HeizungCard from '../components/DashboardCards/HeizungCard.vue'
 import WarmwasserCard from '../components/DashboardCards/WarmwasserCard.vue'
 import WarmwasserTempCard from '../components/DashboardCards/WarmwasserTempCard.vue'
 import WWSolarCard from '../components/DashboardCards/WWSolarCard.vue'
+import ShutterCard from '../components/DashboardCards/ShutterCard.vue'
 import PVRoom from '../components/DashboardCards/PVRoom.vue'
 
 const props = defineProps({
@@ -186,6 +187,7 @@ const cardComponents = {
   WarmwasserTempCard,
   WWSolarCard,
   PVRoom,
+  ShutterCard,
 }
 
 const showChat = ref(false)

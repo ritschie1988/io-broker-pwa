@@ -80,7 +80,6 @@ export default {
 
 <style scoped>
 .wwsolar-card {
-  background: #f8f8f8;
   border-radius: 12px;
   box-shadow: 0 2px 8px #0001;
   padding: 16px;
@@ -89,7 +88,6 @@ export default {
 }
 .zeit {
   margin-top: 10px;
-  color: #888;
   font-size: 13px;
   text-align: right;
 }

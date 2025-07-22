@@ -110,6 +110,28 @@ function parseMultiLightCommands($input, $devices) {
                 $exactDev = null;
                 foreach ($devices[$room] as $d) {
                     if ($d['type'] === 'switch') {
+                        // AUSSCHLUSS: Keine Klimageräte in der Lichtsteuerung
+                        if (isset($d['name']) && (
+                            stripos($d['name'], 'klima') !== false || 
+                            stripos($d['name'], 'klimaanlage') !== false
+                        )) {
+                            $debug[] = "[DEBUG] Klimagerät übersprungen: '{$d['name']}' (gehört nicht zu Lichtsteuerung)";
+                            continue;
+                        }
+                        if (isset($d['synonyms'])) {
+                            foreach ($d['synonyms'] as $syn) {
+                                if (stripos($syn, 'klima') !== false || stripos($syn, 'klimaanlage') !== false) {
+                                    $debug[] = "[DEBUG] Klimagerät übersprungen (Synonym): '{$d['name']}' (gehört nicht zu Lichtsteuerung)";
+                                    continue 2;
+                                }
+                            }
+                        }
+                        // AUSSCHLUSS: Neue AC-Types
+                        if (in_array($d['type'], ['ac-switch', 'ac-target', 'ac-mode'])) {
+                            $debug[] = "[DEBUG] AC-Gerät übersprungen: '{$d['name']}' (Type: {$d['type']})";
+                            continue;
+                        }
+                        
                         $labelLower = strtolower($label);
                         $debug[] = "[DEBUG] Vergleiche mit Gerät: name='{$d['name']}', synonyms='" . implode(",", $d['synonyms'] ?? []) . "'";
                         
@@ -138,6 +160,25 @@ function parseMultiLightCommands($input, $devices) {
                     // Falls kein exakter Treffer, dann 'enthält'-Vergleich
                     foreach ($devices[$room] as $d) {
                         if ($d['type'] === 'switch') {
+                            // AUSSCHLUSS: Keine Klimageräte in der Lichtsteuerung
+                            if (isset($d['name']) && (
+                                stripos($d['name'], 'klima') !== false || 
+                                stripos($d['name'], 'klimaanlage') !== false
+                            )) {
+                                continue;
+                            }
+                            if (isset($d['synonyms'])) {
+                                foreach ($d['synonyms'] as $syn) {
+                                    if (stripos($syn, 'klima') !== false || stripos($syn, 'klimaanlage') !== false) {
+                                        continue 2;
+                                    }
+                                }
+                            }
+                            // AUSSCHLUSS: Neue AC-Types
+                            if (in_array($d['type'], ['ac-switch', 'ac-target', 'ac-mode'])) {
+                                continue;
+                            }
+                            
                             $labelLower = strtolower($label);
                             if (isset($d['name']) && (stripos($d['name'], $labelLower) !== false || stripos($labelLower, strtolower($d['name'])) !== false)) {
                                 $debug[] = "[DEBUG] Name-Teil-Match: '{$d['name']}'";
@@ -198,48 +239,59 @@ function parseMultiLightCommands($input, $devices) {
 
 // Mehrfachbefehle für Rollladen
 function parseMultiShutterCommands($input, $devices) {
-    $pattern = '/(öffne|schließe|hoch|runter|auf|zu)\s+(den|die)?\s*([\wäöüß]+)?\s*(rollladen|rolladen|jalousie|raffstore|shutter)?\s*(im|in)?\s*([\wäöüß]+)?/iu';
+    // Verbesserter Regex für Rollläden - flexibler und robuster
+    $pattern = '/(öffne|schließe|hoch|runter|auf|zu)\s+(das|den|die)?\s*([lrm]?[\wäöüß]*\s*)?(rollladen|rolladen|rollo|jalousie|raffstore|shutter)\s*(im|in)\s+([\wäöüß]+)/iu';
     preg_match_all($pattern, $input, $matches, PREG_SET_ORDER);
     $results = [];
     
+    // Debug: Zeige was der Regex gefunden hat
+    error_log("[DEBUG] Shutter-Regex Input: '$input'");
+    error_log("[DEBUG] Shutter-Regex Matches: " . print_r($matches, true));
+    
     foreach ($matches as $m) {
         $action = strtolower($m[1] ?? '');
-        $label = trim(($m[3] ?? '') . ' ' . ($m[4] ?? ''));
+        $article = $m[2] ?? ''; // das/den/die
+        $label = $m[3] ?? '';   // Zusätzliches Wort (z.B. "rechten", "linken")  
+        $shutterWord = $m[4] ?? ''; // rollo/rollladen etc.
+        $preposition = $m[5] ?? ''; // im/in
         $room = isset($m[6]) ? strtolower($m[6]) : '';
         
+        // Label zusammensetzen
+        $fullLabel = trim($label . ' ' . $shutterWord);
+        if (empty($fullLabel)) $fullLabel = $shutterWord ?: 'rollladen';
+        
         $debug = [];
-        $debug[] = "[DEBUG] Regex-Match: label='$label', room='$room', action='$action'";
+        $debug[] = "[DEBUG] Regex-Match: action='$action', article='$article', label='$label', shutterWord='$shutterWord', preposition='$preposition', room='$room', fullLabel='$fullLabel'";
         
         if ($room && $action) {
             $dev = null;
             if (isset($devices[$room])) {
                 $debug[] = "[DEBUG] Raum gefunden in devices.json: '$room'";
                 
-                // Suche nur Position-Devices mit type shutter
+                // Suche nach Shutter-Geräten mit 'position' in der ID oder im Namen
                 foreach ($devices[$room] as $d) {
-                    if ($d['type'] === 'shutter' && isset($d['name']) && stripos($d['name'], 'position') !== false) {
-                        $labelLower = strtolower($label);
+                    if ($d['type'] === 'shutter' && (stripos($d['id'], 'position') !== false || stripos($d['name'], 'position') !== false)) {
+                        $debug[] = "[DEBUG] Prüfe Shutter-Position-Gerät: '{$d['name']}' (ID: {$d['id']})";
                         
-                        // Label/Synonym muss im Namen/Synonym vorkommen
-                        $match = false;
-                        if (stripos($d['name'], $labelLower) !== false || stripos($labelLower, strtolower($d['name'])) !== false) $match = true;
+                        // Sehr permissive Matching - wenn es ein Shutter-Position-Gerät gibt, nehmen wir es
+                        $match = true; // Standard-Match für Position-Geräte
                         
-                        if (!$match && isset($d['synonyms'])) {
-                            foreach ($d['synonyms'] as $syn) {
-                                $synLower = strtolower($syn);
-                                if ($synLower === $labelLower || stripos($synLower, $labelLower) !== false || stripos($labelLower, $synLower) !== false) {
-                                    $match = true;
-                                    break;
-                                }
-                            }
+                        // Optional: Spezifisches Label-Matching (links/rechts etc.)
+                        if ($label && (stripos($d['name'], $label) !== false || (isset($d['synonyms']) && array_filter($d['synonyms'], function($syn) use($label) {
+                            return stripos($syn, $label) !== false;
+                        })))) {
+                            $debug[] = "[DEBUG] Spezifisches Label-Match gefunden für '$label'";
                         }
                         
                         if ($match) {
                             $dev = $d;
+                            $debug[] = "[DEBUG] Shutter-Gerät gefunden: '{$d['name']}' (ID: {$d['id']})";
                             break;
                         }
                     }
                 }
+            } else {
+                $debug[] = "[DEBUG] Raum nicht in devices.json gefunden: '$room'";
             }
             
             if ($dev) {
@@ -256,10 +308,11 @@ function parseMultiShutterCommands($input, $devices) {
                     'value' => $value,
                     'debug' => $debug
                 ];
+                $debug[] = "[DEBUG] Shutter-Befehl erfolgreich erstellt: ID={$dev['id']}, value=$value";
             } else {
                 $debug[] = "[DEBUG] Kein passender Rollladen-Positionsdatenpunkt gefunden.";
                 $results[] = [
-                    'error' => "Kein passender Rollladen-Positionsdatenpunkt für '{$label}' im Raum '{$room}' gefunden.",
+                    'error' => "Kein passender Rollladen-Positionsdatenpunkt für '$fullLabel' im Raum '$room' gefunden.",
                     'room' => $room,
                     'action' => $action,
                     'debug' => $debug
@@ -280,18 +333,44 @@ function parseMultiShutterCommands($input, $devices) {
 
 // *** HAUPTLOGIK BEGINNT HIER ***
 
-// 1. ZUERST: Direkte Pattern-Erkennung für Lichtbefehle
+// 1. ZUERST: Direkte Pattern-Erkennung für Lichtbefehle (aber NICHT für Klimabefehle)
 $lightResults = parseMultiLightCommands($userInput, $devices);
-if (!empty($lightResults)) {
+
+// Prüfe ob es sich um einen Klimabefehl handelt - dann überspringen
+$isClimateCommand = (
+    stripos($userInput, 'klima') !== false || 
+    stripos($userInput, 'klimaanlage') !== false ||
+    stripos($userInput, 'temperatur') !== false ||
+    stripos($userInput, 'grad') !== false
+);
+
+if (!empty($lightResults) && !$isClimateCommand) {
     echo json_encode(["multi_light" => $lightResults]);
     exit;
+} else if (!empty($lightResults) && $isClimateCommand) {
+    // Klimabefehl erkannt - ignoriere Light-Results und gehe zur OpenAI API
+    error_log("[DEBUG] Klimabefehl erkannt, überspringe Light-Parsing: '$userInput'");
 }
 
 // 2. Rollladen-Befehle erkennen und verarbeiten
 $shutterResults = parseMultiShutterCommands($userInput, $devices);
-if (!empty($shutterResults) && isset($shutterResults[0]['id'])) {
-    echo json_encode(["multi_shutter" => $shutterResults]);
-    exit;
+if (!empty($shutterResults)) {
+    // Prüfe ob mindestens ein Ergebnis eine ID hat (nicht nur einen Fehler)
+    $hasValidShutterCommand = false;
+    foreach ($shutterResults as $result) {
+        if (isset($result['id']) && $result['id']) {
+            $hasValidShutterCommand = true;
+            break;
+        }
+    }
+    
+    if ($hasValidShutterCommand) {
+        echo json_encode(["multi_shutter" => $shutterResults]);
+        exit;
+    } else {
+        // Wenn Regex matched, aber kein Gerät gefunden: Error-Log ausgeben
+        error_log("[DEBUG] Shutter-Regex matched, aber kein Gerät gefunden: " . print_r($shutterResults, true));
+    }
 }
 
 // 3. FALLBACK: OpenAI API für komplexere Befehle
@@ -310,18 +389,18 @@ $functions = array(
     ),
     array(
         "name" => "control_ac",
-        "description" => "Steuert die Klimaanlage eines Raumes",
+        "description" => "Steuert die Klimaanlage eines Raumes (ein/aus, Solltemperatur, Modus, Turbo, Kombinationen möglich)",
         "parameters" => array(
             "type" => "object",
             "properties" => array(
                 "room" => array("type" => "string"),
                 "action" => array("type" => "string", "enum" => array("on", "off", "set_temp", "set_mode", "set_turbo", "set_all")),
-                "mode" => array("type" => "number"),
-                "temperature" => array("type" => "number"),
-                "turbo" => array("type" => "boolean"),
-                "value" => array("type" => "number")
+                "power" => array("type" => "boolean", "description" => "Klimaanlage ein- oder ausschalten"),
+                "temperature" => array("type" => "number", "description" => "Solltemperatur in °C (16-30)"),
+                "mode" => array("type" => "number", "description" => "1=Automatik, 2=Kühlen, 3=Entfeuchten, 4=Heizen, 5=Nur Lüfter"),
+                "turbo" => array("type" => "boolean", "description" => "Turbo-Modus an/aus")
             ),
-            "required" => array("room", "action")
+            "required" => array("room")
         )
     )
 );
@@ -352,7 +431,7 @@ if ($curlError) {
     exit;
 }
 
-// *** HIER WAR DER FEHLER: API-Antwort wurde nie dekodiert! ***
+// API-Antwort dekodieren
 $decoded = json_decode($response, true);
 if (!$decoded || !isset($decoded['choices'][0]['message'])) {
     echo json_encode(["status" => "Ungültige API-Antwort"]);

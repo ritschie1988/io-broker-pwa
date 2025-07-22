@@ -6,6 +6,25 @@ import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import '@mdi/font/css/materialdesignicons.css'
 
+// Titel setzen
+document.title = 'Smart Home Dashboard'
+
+// Favicon setzen
+const setFavicon = (href) => {
+  // Entferne existierende Favicons
+  const existingFavicons = document.querySelectorAll('link[rel*="icon"]')
+  existingFavicons.forEach(favicon => favicon.remove())
+  
+  // Füge neues Favicon hinzu
+  const link = document.createElement('link')
+  link.rel = 'icon'
+  link.type = 'image/svg+xml'
+  link.href = href
+  document.head.appendChild(link)
+}
+
+setFavicon('/iobroker/vite.svg')
+
 const vuetify = createVuetify({
   components,
   directives,
