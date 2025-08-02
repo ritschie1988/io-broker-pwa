@@ -6,22 +6,18 @@
         <div class="mb-6">
           <h4 class="mb-3">{{ shutter.label }}</h4>
           
-          <!-- Position Anzeige -->
-          <div class="mb-3">
-            <v-progress-linear
-              :model-value="shutterPositions[shutter.positionId] || 0"
-              height="20"
-              color="primary"
-              class="mb-2"
-            >
-              <template v-slot:default>
-                <strong>{{ Math.round(shutterPositions[shutter.positionId] || 0) }}%</strong>
-              </template>
-            </v-progress-linear>
+          <!-- Canvas + Slider Layout -->
+          <div class="shutter-display-container justify-center mb-3">
+            <!-- Canvas mit integriertem Slider -->
+            <ShutterCanvas 
+              :position="shutterPositions[shutter.positionId] || 0"
+              :width="canvasWidth"
+              @positionChange="(newPosition) => setPosition(shutter, newPosition)"
+            />
           </div>
 
           <!-- Steuerungsbuttons -->
-          <div class="d-flex gap-2 mb-3">
+          <div class="d-flex justify-center gap-2 mb-3">
             <v-btn
               size="small"
               @click="openShutter(shutter)"
@@ -50,27 +46,7 @@
             </v-btn>
           </div>
 
-          <!-- Position manuell setzen -->
-          <div class="mb-3">
-            <v-slider
-              v-model="manualPositions[shutter.name]"
-              :min="0"
-              :max="100"
-              :step="5"
-              thumb-label
-              label="Position manuell setzen"
-              @end="setPosition(shutter, manualPositions[shutter.name])"
-            >
-              <template v-slot:append>
-                <v-btn
-                  size="small"
-                  @click="setPosition(shutter, manualPositions[shutter.name])"
-                >
-                  Setzen
-                </v-btn>
-              </template>
-            </v-slider>
-          </div>
+
         </div>
         
         <v-divider v-if="shutter !== shutters[shutters.length - 1]" class="mb-4"></v-divider>
@@ -81,8 +57,12 @@
 
 <script setup>
 import { ref, watch, onMounted, computed, onUnmounted } from 'vue'
+import ShutterCanvas from './ShutterCanvas.vue'
 
 const props = defineProps({ room: String })
+
+// Canvas Breite dynamisch berechnen
+const canvasWidth = ref(300)
 
 // Definition aller Rollläden pro Raum basierend auf devices.json
 const roomShutters = {
@@ -239,6 +219,10 @@ watch(() => props.room, () => {
 onMounted(() => {
   fetchPositions()
   startLiveUpdates()
+  
+  // Canvas Breite basierend auf Card-Breite berechnen
+  // Das machen wir später responsive
+  canvasWidth.value = 300
 })
 
 onUnmounted(() => {
@@ -249,5 +233,75 @@ onUnmounted(() => {
 <style scoped>
 .gap-2 {
   gap: 8px;
+}
+
+.shutter-display-container {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.canvas-wrapper {
+  flex: 0 0 80%;
+}
+
+.slider-wrapper {
+  flex: 0 0 20%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100px;
+}
+
+/* Höhe mit :deep() und exakten Klassen */
+.vertical-slider :deep(.v-input__control) {
+  height: 70px !important;
+}
+
+.vertical-slider :deep(.v-slider__container) {
+  height: 70px !important;
+  width: 30px !important;
+}
+
+.vertical-slider :deep(.v-slider-track) {
+  width: 6px !important;
+}
+
+/* Glas-Design mit :deep() */
+.vertical-slider :deep(.v-slider-track__fill) {
+  background: linear-gradient(180deg, 
+    rgba(33, 150, 243, 0.8) 0%, 
+    rgba(33, 150, 243, 0.6) 50%, 
+    rgba(33, 150, 243, 0.4) 100%) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(33, 150, 243, 0.3) !important;
+  border-radius: 12px !important;
+}
+
+.vertical-slider :deep(.v-slider-track__background) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(5px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 12px !important;
+}
+
+.vertical-slider :deep(.v-slider-thumb) {
+  background: linear-gradient(145deg, 
+    rgba(33, 150, 243, 0.9) 0%, 
+    rgba(33, 150, 243, 0.7) 100%) !important;
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(10px) !important;
+  box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3) !important;
+}
+
+.vertical-slider :deep(.v-slider-thumb__surface) {
+  background: transparent !important;
+}
+
+.slider-label {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.87);
 }
 </style>
