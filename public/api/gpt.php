@@ -374,44 +374,52 @@ if (!empty($shutterResults)) {
 }
 
 // 3. FALLBACK: OpenAI API für komplexere Befehle
-$functions = array(
+$tools = array(
     array(
-        "name" => "toggle_light",
-        "description" => "Schaltet ein Licht an oder aus",
-        "parameters" => array(
-            "type" => "object",
-            "properties" => array(
-                "room" => array("type" => "string"),
-                "state" => array("type" => "string", "enum" => array("on", "off"))
-            ),
-            "required" => array("room", "state")
+        "type" => "function",
+        "function" => array(
+            "name" => "toggle_light",
+            "description" => "Schaltet ein Licht an oder aus",
+            "parameters" => array(
+                "type" => "object",
+                "properties" => array(
+                    "room" => array("type" => "string"),
+                    "state" => array("type" => "string", "enum" => array("on", "off"))
+                ),
+                "required" => array("room", "state")
+            )
         )
     ),
     array(
-        "name" => "control_ac",
-        "description" => "Steuert die Klimaanlage eines Raumes (ein/aus, Solltemperatur, Modus, Turbo, Kombinationen möglich)",
-        "parameters" => array(
-            "type" => "object",
-            "properties" => array(
-                "room" => array("type" => "string"),
-                "action" => array("type" => "string", "enum" => array("on", "off", "set_temp", "set_mode", "set_turbo", "set_all")),
-                "power" => array("type" => "boolean", "description" => "Klimaanlage ein- oder ausschalten"),
-                "temperature" => array("type" => "number", "description" => "Solltemperatur in °C (16-30)"),
-                "mode" => array("type" => "number", "description" => "1=Automatik, 2=Kühlen, 3=Entfeuchten, 4=Heizen, 5=Nur Lüfter"),
-                "turbo" => array("type" => "boolean", "description" => "Turbo-Modus an/aus")
-            ),
-            "required" => array("room")
+        "type" => "function",
+        "function" => array(
+            "name" => "control_ac",
+            "description" => "Steuert die Klimaanlage eines Raumes (ein/aus, Solltemperatur, Modus, Turbo, Kombinationen möglich)",
+            "parameters" => array(
+                "type" => "object",
+                "properties" => array(
+                    "room" => array("type" => "string"),
+                    "action" => array("type" => "string", "enum" => array("on", "off", "set_temp", "set_mode", "set_turbo", "set_all")),
+                    "power" => array("type" => "boolean", "description" => "Klimaanlage ein- oder ausschalten"),
+                    "temperature" => array("type" => "number", "description" => "Solltemperatur in °C (16-30)"),
+                    "mode" => array("type" => "number", "description" => "1=Automatik, 2=Kühlen, 3=Entfeuchten, 4=Heizen, 5=Nur Lüfter"),
+                    "turbo" => array("type" => "boolean", "description" => "Turbo-Modus an/aus")
+                ),
+                "required" => array("room")
+            )
         )
     )
 );
 
 $data = [
-    "model" => "gpt-4-0613",
+    "model" => "gpt-4o-mini",  // Kostengünstiger und schneller als gpt-4o
     "messages" => [
+        ["role" => "system", "content" => "Du bist ein Smart Home Assistent. Antworte auf Deutsch und nutze die verfügbaren Funktionen zur Gerätesteuerung."],
         ["role" => "user", "content" => $userInput]
     ],
-    "functions" => $functions,
-    "function_call" => "auto"
+    "tools" => $tools,
+    "tool_choice" => "auto",
+    "max_tokens" => 500  // Begrenzt die Antwortlänge für bessere Performance
 ];
 
 $ch = curl_init("https://api.openai.com/v1/chat/completions");
@@ -424,55 +432,98 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
 
 $response = curl_exec($ch);
 $curlError = curl_error($ch);
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
+
+// Debug: API-Response loggen
+error_log("[DEBUG] OpenAI API Response Code: $httpCode");
+error_log("[DEBUG] OpenAI API Response: " . substr($response, 0, 500) . "...");
 
 if ($curlError) {
     echo json_encode(["status" => "Fehler beim API-Request: $curlError"]);
     exit;
 }
 
+// Prüfe HTTP Status Code
+if ($httpCode !== 200) {
+    echo json_encode(["status" => "API HTTP Error: $httpCode", "response" => $response]);
+    exit;
+}
+
 // API-Antwort dekodieren
 $decoded = json_decode($response, true);
+
+// Spezielle Fehlerbehandlung für OpenAI API
+if ($httpCode === 429) {
+    echo json_encode([
+        "response" => "⚠️ OpenAI API-Kontingent erreicht. Bitte überprüfen Sie Ihr OpenAI-Konto und Billing-Details.",
+        "status" => "quota_exceeded"
+    ]);
+    exit;
+}
+
+if ($httpCode === 401) {
+    echo json_encode([
+        "response" => "❌ OpenAI API-Key ungültig oder abgelaufen. Bitte aktualisieren Sie den API-Key in der .env Datei.",
+        "status" => "invalid_api_key"
+    ]);
+    exit;
+}
+
 if (!$decoded || !isset($decoded['choices'][0]['message'])) {
-    echo json_encode(["status" => "Ungültige API-Antwort"]);
+    // Fallback für wenn die API nicht verfügbar ist
+    echo json_encode([
+        "response" => "Entschuldigung, der GPT-Service ist momentan nicht verfügbar. Bitte versuchen Sie es später noch einmal.",
+        "status" => "api_unavailable",
+        "debug" => ["http_code" => $httpCode, "raw_response" => substr($response, 0, 200)]
+    ]);
     exit;
 }
 
 $message = $decoded['choices'][0]['message'];
-$call = isset($message['function_call']) ? $message['function_call'] : null;
 
-// Function Call Verarbeitung
-if ($call && $call['name'] === 'toggle_light') {
-    $params = json_decode($call['arguments'], true);
-    $room = $params['room'] ?? '';
-    $state = $params['state'] ?? '';
-    
-    $dev = findDevice($devices, $room, 'switch');
-    if ($dev) {
-        $value = ($state === 'on') ? $dev['onValue'] : $dev['offValue'];
-        echo json_encode([
-            "multi_light" => [[
-                'id' => $dev['id'],
-                'name' => $dev['name'],
-                'room' => $room,
-                'value' => $value,
-                'status' => "Schaltbefehl für {$dev['name']} im $room ($state) wird ausgeführt."
-            ]]
-        ]);
-    } else {
-        echo json_encode([
-            "multi_light" => [[
-                'error' => "Kein passendes Licht im Raum '$room' gefunden."
-            ]]
-        ]);
+// Neue Tools API: tool_calls statt function_call
+$toolCalls = isset($message['tool_calls']) ? $message['tool_calls'] : [];
+
+// Tool Call Verarbeitung
+if (!empty($toolCalls)) {
+    foreach ($toolCalls as $toolCall) {
+        if ($toolCall['type'] === 'function') {
+            $functionName = $toolCall['function']['name'];
+            $arguments = json_decode($toolCall['function']['arguments'], true);
+            
+            if ($functionName === 'toggle_light') {
+                $room = $arguments['room'] ?? '';
+                $state = $arguments['state'] ?? '';
+                
+                $dev = findDevice($devices, $room, 'switch');
+                if ($dev) {
+                    $value = ($state === 'on') ? $dev['onValue'] : $dev['offValue'];
+                    echo json_encode([
+                        "multi_light" => [[
+                            'id' => $dev['id'],
+                            'name' => $dev['name'],
+                            'room' => $room,
+                            'value' => $value,
+                            'status' => "Schaltbefehl für {$dev['name']} im $room ($state) wird ausgeführt."
+                        ]]
+                    ]);
+                } else {
+                    echo json_encode([
+                        "multi_light" => [[
+                            'error' => "Kein passendes Licht im Raum '$room' gefunden."
+                        ]]
+                    ]);
+                }
+                exit;
+            }
+            
+            if ($functionName === 'control_ac') {
+                echo json_encode(["ac_control" => $arguments]);
+                exit;
+            }
+        }
     }
-    exit;
-}
-
-if ($call && $call['name'] === 'control_ac') {
-    $params = json_decode($call['arguments'], true);
-    echo json_encode(["ac_control" => $params]);
-    exit;
 }
 
 // Fallback: Standard-Antwort
