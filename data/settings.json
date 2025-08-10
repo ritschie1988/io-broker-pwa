@@ -6,6 +6,6 @@
     },
     "general": {
         "darkTheme": false,
-        "notifications": false
+        "notifications": true
     }
 }

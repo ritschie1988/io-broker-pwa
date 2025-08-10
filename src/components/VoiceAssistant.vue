@@ -67,11 +67,6 @@ onMounted(async () => {
     console.error('Fehler beim Laden der Geräte:', error)
   }
 
-// iOS-optimierte Spracherkennung - ersetzen Sie den Web Speech API Teil:
-
-onMounted(async () => {
-  // ... bestehender Code ...
-
   // Web Speech API mit iOS-Optimierungen
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
   if (SpeechRecognition) {
@@ -190,18 +185,6 @@ function toggleListening() {
       })
     }
     
-    recognition.start()
-    isListening.value = true
-  }
-}
-})
-
-function toggleListening() {
-  if (!recognition) return
-  if (isListening.value) {
-    recognition.stop()
-    isListening.value = false
-  } else {
     recognition.start()
     isListening.value = true
   }
