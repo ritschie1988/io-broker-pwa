@@ -195,6 +195,13 @@
       "actions": ["schalte"]
     },
     {
+      "id": "mqtt.0.AnzeigeSchlafzimmer.Co2.PPM",
+      "name": "Schlafzimmer Luftqualität",
+      "synonyms": ["Luftqualität", "Luftinfo Schlafzimmer"],
+      "type": "sensor",
+      "unit": "ppm"
+    },
+    {
       "id": "tuya.0.bf4ee5091e3b1689eer3nq.1",
       "name": "Schlafzimmer Temperatur",
       "synonyms": ["Temperatur Schlafzimmer", "Raumtemperatur Schlafzimmer"],

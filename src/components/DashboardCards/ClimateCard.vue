@@ -39,20 +39,31 @@
 
       <!-- Original Controls -->
       <div class="mt-4">
-        <div class="mt-2 mb-2" style="display: flex; align-items: center;">
-          <v-slider
-            v-model="targetTemperature"
-            :min="17"
-            :max="30"
-            step="1"
-            label="Solltemperatur"
-            thumb-label="never"
-            @update:modelValue="setState('targetTemperature', targetTemperature)"
-            style="flex: 1;"
-          />
-          <v-chip color="primary" class="ml-4" label>
-            {{ targetTemperature }} °C
-          </v-chip>
+        <div class="mt-2 mb-2" style="display: flex; align-items: center; gap: 12px; justify-content: center;">
+          <v-btn
+            icon
+            size="small"
+            color="primary"
+            :disabled="targetTemperature <= 17"
+            @click="decreaseTemperature"
+          >
+            <v-icon>mdi-minus</v-icon>
+          </v-btn>
+          
+          <div class="temperature-display">
+            <span class="temperature-value">{{ targetTemperature }}°C</span>
+            <span class="temperature-label">Solltemperatur</span>
+          </div>
+          
+          <v-btn
+            icon
+            size="small"
+            color="primary"
+            :disabled="targetTemperature >= 30"
+            @click="increaseTemperature"
+          >
+            <v-icon>mdi-plus</v-icon>
+          </v-btn>
         </div>
         
         <v-row>
@@ -170,6 +181,21 @@ const swingModes = [
 ]
 
 // ===== METHODS =====
+
+// Temperature control methods
+function increaseTemperature() {
+  if (targetTemperature.value < 30) {
+    targetTemperature.value++
+    setState('targetTemperature', targetTemperature.value)
+  }
+}
+
+function decreaseTemperature() {
+  if (targetTemperature.value > 17) {
+    targetTemperature.value--
+    setState('targetTemperature', targetTemperature.value)
+  }
+}
 
 // Device configuration loading
 async function loadDeviceConfig() {
@@ -581,6 +607,58 @@ onUnmounted(() => {
   text-align: center;
   color: #2c3e50;
   margin-bottom: 10px;
+}
+
+.temperature-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 140px;
+  padding: 16px 20px;
+  background: linear-gradient(145deg, #f5f5f5, #e8e8e8);
+  border: none;
+  border-radius: 20px;
+  box-shadow: 
+    0 8px 20px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.temperature-display:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 12px 25px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+}
+
+.temperature-display::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 15%;
+  right: 15%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  border-radius: 50%;
+}
+
+.temperature-value {
+  font-size: 26px;
+  font-weight: bold;
+  color: #2c3e50;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.temperature-label {
+  font-size: 12px;
+  color: #7f8c8d;
+  margin-top: 4px;
+  font-weight: 500;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5);
 }
 
 /* Swing-Animationen für Lamellen */
