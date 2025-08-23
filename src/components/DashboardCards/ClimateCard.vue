@@ -243,6 +243,9 @@ function setFallbackValues() {
   } else if (props.room === 'schlafzimmer') {
     climatePrefix.value = 'midea.0.19791209303536.control.'
     tempSensorId.value = 'tuya.0.bf4ee5091e3b1689eer3nq.1'
+  } else if (props.room === 'esszimmer') {
+    climatePrefix.value = 'midea.0.152832117372185.control.'
+    tempSensorId.value = 'mqtt.0.HeizungThermostatEZ.TempEZ'
   }
 }
 

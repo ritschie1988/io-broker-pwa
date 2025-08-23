@@ -365,20 +365,37 @@
   ],
   "esszimmer": [
     {
-      "id": "midea.0.DEINE_ESSZIMMER_ID.control.powerState",
+      "id": "midea.0.152832117372185.control.powerState",
       "name": "Esszimmer Klima Power",
       "synonyms": ["Klimaanlage Esszimmer", "Klima Esszimmer"],
-      "type": "switch",
+      "type": "ac-switch",
       "onValue": true,
       "offValue": false,
       "actions": ["schalte"]
     },
     {
-      "id": "midea.0.DEINE_ESSZIMMER_ID.control.targetTemperature",
+      "id": "midea.0.152832117372185.control.targetTemperature",
       "name": "Esszimmer Klima Solltemperatur",
       "synonyms": ["Klima Zieltemperatur Esszimmer"],
-      "type": "target",
+      "type": "ac-target",
       "unit": "°C"
+    },
+    {
+      "id": "midea.0.152832117372185.control.operationalMode",
+      "name": "Esszimmer Klima Betriebsmodus",
+      "synonyms": ["Klima Betriebsmodus Esszimmer"],
+      "type": "ac-mode",
+      "value": ["1=auto", "2=cool", "3=heat", "4=dry", "5=fan"],
+      "actions": ["stelle"]
+    },
+    {
+      "id": "midea.0.152832117372185.control.turboMode",
+      "name": "Esszimmer Klima Turbo-Modus",
+      "synonyms": ["Klima Turbo-Modus Esszimmer"],
+      "type": "ac-turbo",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["stelle", "aktiviere", "deaktiviere"]
     },
     {
       "id": "mqtt.0.HeizungThermostatEssz.Relay.State",
