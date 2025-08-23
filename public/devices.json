@@ -72,13 +72,6 @@
       "unit": "kWh"
     },
     {
-      "id": "sonoff.0.PowerWZ.ENERGY_Today",
-      "name": "Wohnzimmer Energie Monat",
-      "synonyms": ["Energieverbrauch Wohnzimmer Monat"],
-      "type": "sensor",
-      "unit": "kWh"
-    },
-    {
       "id": "midea.0.145135534992585.control.powerState",
       "name": "Wohnzimmer Klima Power",
       "synonyms": ["Klimaanlage Wohnzimmer", "Klima Wohnzimmer"],
@@ -173,6 +166,40 @@
       "synonyms": ["Rollladen", "Rollo rechts", "rechts"],
       "type": "shutter",
       "actions": ["stoppe"]
+    },
+    {
+      "id": "mqtt.0.Menv180_02.Menv.modus",
+      "name": "Wohnzimmer Lüftung Modus",
+      "synonyms": ["Lüftung Modus Wohnzimmer", "Lüftungsmodus", "Modus der Lüftung"],
+      "type": "air-mode",
+      "value": ["Sommer", "Winter", "Party", "Stop"],
+      "actions": ["stelle", "setze", "aktiviere"]
+    },
+    {
+      "id": "mqtt.0.Menv180_02.Menv.stufe",
+      "name": "Wohnzimmer Lüftung Stufe",
+      "synonyms": ["Lüftung Stufe Wohnzimmer", "Lüftungsstufe"],
+      "type": "air-level",
+      "value": [1, 2, 3, 4, 5],
+      "actions": ["stelle", "setze"]
+    },
+    {
+      "id": "0_userdata.0.lueftung.Wohnzimmer.ModusAutomatik",
+      "name": "Wohnzimmer Lüftung Automatik-Modus",
+      "synonyms": ["Lüftung Automatik-Modus Wohnzimmer"],
+      "type": "air-automode",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["stelle", "aktiviere", "deaktiviere"]
+    },
+    {
+      "id": "0_userdata.0.lueftung.Wohnzimmer.StufenAutomatik",
+      "name": "Wohnzimmer Lüftung Stufen-Automatik",
+      "synonyms": ["Lüftung Stufen-Automatik Wohnzimmer"],
+      "type": "air-autolevel",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["stelle", "aktiviere", "deaktiviere"]
     }
   ],
   "schlafzimmer": [

@@ -66,6 +66,7 @@ import WarmwasserTempCard from '../components/DashboardCards/WarmwasserTempCard.
 import WWSolarCard from '../components/DashboardCards/WWSolarCard.vue'
 import ShutterCard from '../components/DashboardCards/ShutterCard.vue'
 import PVRoom from '../components/DashboardCards/PVRoom.vue'
+import VentilationCard from '../components/DashboardCards/VentilationCard.vue'
 
 const props = defineProps({
   notifications: {
@@ -188,6 +189,7 @@ const cardComponents = {
   WWSolarCard,
   PVRoom,
   ShutterCard,
+  VentilationCard,
 }
 
 const showChat = ref(false)
