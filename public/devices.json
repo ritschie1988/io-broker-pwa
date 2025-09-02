@@ -332,6 +332,40 @@
       "onValue": true,
       "offValue": false,
       "actions": ["stoppe"]
+    },
+    {
+      "id": "mqtt.0.Menv180_01.Menv.modus",
+      "name": "Schlafzimmer Lüftung Modus",
+      "synonyms": ["Lüftung Modus Schlafzimmer", "Lüftungsmodus", "Modus der Lüftung"],
+      "type": "air-mode",
+      "value": ["Sommer", "Winter", "Party", "Stop"],
+      "actions": ["stelle", "setze", "aktiviere"]
+    },
+    {
+      "id": "mqtt.0.Menv180_01.Menv.stufe",
+      "name": "Schlafzimmer Lüftung Stufe",
+      "synonyms": ["Lüftung Stufe Schlafzimmer", "Lüftungsstufe"],
+      "type": "air-level",
+      "value": [1, 2, 3, 4, 5],
+      "actions": ["stelle", "setze"]
+    },
+    {
+      "id": "0_userdata.0.lueftung.Schlafzimmer.ModusAutomatik",
+      "name": "Schlafzimmer Lüftung Automatik-Modus",
+      "synonyms": ["Lüftung Automatik-Modus Schlafzimmer"],
+      "type": "air-automode",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["stelle", "aktiviere", "deaktiviere"]
+    },
+    {
+      "id": "0_userdata.0.lueftung.Schlafzimmer.StufenAutomatik",
+      "name": "Schlafzimmer Lüftung Stufen-Automatik",
+      "synonyms": ["Lüftung Stufen-Automatik Schlafzimmer"],
+      "type": "air-autolevel",
+      "onValue": true,
+      "offValue": false,
+      "actions": ["stelle", "aktiviere", "deaktiviere"]
     }
   ],
   "bad": [

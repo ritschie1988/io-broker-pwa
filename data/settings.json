@@ -5,7 +5,7 @@
         "tempMax": 65
     },
     "general": {
-        "darkTheme": false,
-        "notifications": true
+        "darkTheme": true,
+        "notifications": false
     }
 }

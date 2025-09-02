@@ -86,6 +86,7 @@ const availableCards = [
   'PVRoom',
   'ShutterCard',
   'VentilationCard',
+  'DoorbellCard',
 ]
 
 

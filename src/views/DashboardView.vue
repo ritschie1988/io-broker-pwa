@@ -43,13 +43,38 @@
     </v-slide-group-item>
   </v-slide-group>
   </v-toolbar>
-  <v-row class="dashboard-cards">
-    <template v-for="cardName in roomConfigs[selectedRoom] || []" :key="cardName">
-      <v-col cols="12" md="6" lg="4">
+  
+  <div class="dashboard-grid">
+    <div
+      v-for="cardName in roomConfigs[selectedRoom] || []"
+      :key="cardName"
+      :class="['card-tile', { expanded: expandedCards[cardName] }]"
+    >
+      <div class="tile-header" @click="!expandedCards[cardName] && toggleCard(cardName)">
+        <h3>{{ getCardTitle(cardName) }}</h3>
+      </div>
+      
+      <!-- Miniaturansicht (immer sichtbar) -->
+      <div v-if="!expandedCards[cardName]" class="tile-preview">
         <component :is="cardComponents[cardName]" :room="selectedRoom" />
-      </v-col>
-    </template>
-  </v-row>
+        <!-- Overlay für Klick-Interaktion -->
+        <div class="preview-overlay" @click="toggleCard(cardName)">
+          <v-icon class="expand-icon">mdi-fullscreen</v-icon>
+        </div>
+      </div>
+      
+      <!-- Vollansicht (nur wenn expandiert) -->
+      <div v-if="expandedCards[cardName]" class="tile-content" @click.stop>
+        <component :is="cardComponents[cardName]" :room="selectedRoom" />
+        <v-btn 
+          class="close-btn"
+          icon="mdi-close"
+          size="small"
+          @click="toggleCard(cardName)"
+        />
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -67,6 +92,7 @@ import WWSolarCard from '../components/DashboardCards/WWSolarCard.vue'
 import ShutterCard from '../components/DashboardCards/ShutterCard.vue'
 import PVRoom from '../components/DashboardCards/PVRoom.vue'
 import VentilationCard from '../components/DashboardCards/VentilationCard.vue'
+import DoorbellCard from '../components/DashboardCards/DoorbellCard.vue'
 
 const props = defineProps({
   notifications: {
@@ -190,9 +216,34 @@ const cardComponents = {
   PVRoom,
   ShutterCard,
   VentilationCard,
+  DoorbellCard,
+}
+
+function getCardTitle(cardName) {
+  // Optional: Individuelle Titel pro Card
+  const titles = {
+    EnergyMonthCard: 'Energie Monat',
+    EnergyTodayCard: 'Energie Heute',
+    ClimateCard: 'Klima',
+    LightCard: 'Licht',
+    HeizungCard: 'Heizung',
+    WarmwasserCard: 'Warmwasser',
+    WarmwasserTempCard: 'Warmwasser Temperatur',
+    WWSolarCard: 'WW Solar',
+    PVRoom: 'PV Raum',
+    ShutterCard: 'Rollläden',
+    VentilationCard: 'Lüftung',
+    DoorbellCard: 'Türspionkamera',
+  }
+  return titles[cardName] || cardName
 }
 
 const showChat = ref(false)
+const expandedCards = ref({})
+
+function toggleCard(cardName) {
+  expandedCards.value[cardName] = !expandedCards.value[cardName]
+}
 
 </script>
 <style scoped>
@@ -272,5 +323,178 @@ const showChat = ref(false)
 }
 .chat-bubble-enter-from, .chat-bubble-leave-to {
   opacity: 0;
+}
+
+/* Dashboard Grid Layout */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+  gap: 16px;
+  padding: 16px;
+  max-width: 100%;
+}
+
+/* Card Tiles */
+.card-tile {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  
+  /* Kleine Tile standardmäßig */
+  width: 20rem;
+  height: 20rem;
+  min-width: 20rem;
+  min-height: 20rem;
+}
+
+.card-tile:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  transform: translateY(-2px);
+}
+
+/* Expanded Tile */
+.card-tile.expanded {
+  width: 40rem;
+  height: 40rem;
+  z-index: 10;
+  position: relative;
+  grid-column: span 2; /* Nimmt mehrere Grid-Spalten ein */
+  grid-row: span 2;    /* Nimmt mehrere Grid-Zeilen ein */
+}
+
+/* Tile Header */
+.tile-header {
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f5f5f5;
+  height: 48px;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.tile-header:hover {
+  background: #e8e8e8;
+}
+
+.card-tile.expanded .tile-header {
+  cursor: default;
+  background: #f5f5f5;
+}
+
+.card-tile.expanded .tile-header:hover {
+  background: #f5f5f5;
+}
+
+.tile-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-tile.expanded .tile-header h3 {
+  font-size: 18px;
+}
+
+/* Tile Content */
+.tile-content {
+  padding: 16px;
+  height: calc(100% - 48px);
+  overflow: auto;
+  position: relative;
+}
+
+/* Miniaturansicht */
+.tile-preview {
+  position: relative;
+  height: calc(100% - 48px);
+  overflow: hidden;
+  transform: scale(0.3);
+  transform-origin: top left;
+  width: 333.33%; /* 100% / 0.3 um den Scale-Effekt auszugleichen */
+  height: 333.33%; /* 100% / 0.3 um den Scale-Effekt auszugleichen */
+  pointer-events: none; /* Verhindert Interaktion mit der Miniatur */
+}
+
+/* Overlay für Klick-Interaktion */
+.preview-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all; /* Ermöglicht Klicks auf das Overlay */
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.tile-preview:hover .preview-overlay {
+  opacity: 1;
+}
+
+.expand-icon {
+  color: #1976d2;
+  font-size: 3rem !important;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* Close Button für expandierte Cards */
+.close-btn {
+  position: absolute !important;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Responsive Layout */
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 12px;
+    padding: 12px;
+  }
+  
+  .card-tile {
+    width: 15rem;
+    height: 15rem;
+    min-width: 15rem;
+    min-height: 15rem;
+  }
+  
+  .card-tile.expanded {
+    width: calc(100vw - 32px);
+    height: 400px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    grid-column: unset;
+    grid-row: unset;
+  }
+  
+  .tile-header h3 {
+    font-size: 12px;
+  }
 }
 </style>

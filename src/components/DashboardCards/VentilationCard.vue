@@ -2,7 +2,7 @@
   <v-card class="vent-card pa-4">
         <v-card-title class="d-flex align-center justify-space-between">
       <div class="d-flex align-center gap-2">
-        <span class="text-h6">🌀 Lüftung {{ roomName }}</span>
+        <span class="text-h6">Lüftung {{ roomName }}</span>
         <v-chip :color="isRunning ? 'primary' : 'grey'" size="small" variant="flat">{{ statusText }}</v-chip>
       </div>
       <div class="d-flex align-center gap-2">
