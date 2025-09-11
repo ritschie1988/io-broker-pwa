@@ -42,3 +42,4 @@ data/rooms.json
 .env
 public/api/Von_Bartels_Daten/bartels_data.db
 public/api/Von_Bartels_Daten/letzte_daten.json
+data/doorbell/images/*
